@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "module": "commonjs",
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "es2019"
+  },
+  "files": ["start.ts"]
+}

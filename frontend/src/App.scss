@@ -1,0 +1,203 @@
+.backgroundPrimary {
+  background: $white;
+}
+
+.backgroundSecondary {
+  background: $black;
+}
+
+.colorPrimary {
+  color: $white;
+}
+
+.colorSecondary {
+  color: $black;
+}
+
+@media (prefers-color-scheme: dark) {
+  .backgroundPrimary {
+    background: $black;
+  }
+
+  .backgroundSecondary {
+    background: $white;
+  }
+
+
+  .colorPrimary {
+    color: $black;
+  }
+
+  .colorSecondary {
+    color: $white;
+  }
+
+  .react-autosuggest__input {
+    background: $black;
+    color: $white;
+  }
+
+  .react-autosuggest__suggestion {
+    background: $black;
+    color: $white;
+
+    &.react-autosuggest__suggestion--highlighted {
+      color: $black;
+    }
+  }
+
+  .App > .body > .content > .episode > .controls > .MuiSlider-root {
+    color: $white !important;
+  }
+}
+
+.App {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding-top: 100px;
+
+  @media only screen and (max-width: 1000px) {
+    padding-top: 20px;
+  }
+
+  > .body {
+    align-items: center;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+
+    > .heading {
+      font-size: 72px;
+      font-weight: 800;
+      letter-spacing: -1.8px;
+      padding: 0 10px;
+      text-align: center;
+
+      @media only screen and (max-width: 600px) {
+        font-size: 48px;
+      }
+    }
+
+    > .content {
+      max-width: 800px;
+      width: calc(100% - 40px);
+
+      > .episode {
+        padding: 25px 0;
+
+        > .heading {
+          font-size: 36px;
+          font-weight: 800;
+          letter-spacing: -1.8px;
+        }
+
+        > .subHeading {
+          font-size: 24px;
+          font-weight: 800;
+          letter-spacing: -1px;
+          padding: 10px 0;
+        }
+
+        > img {
+          height: 169px;
+          margin-top: 25px;
+          max-width: 100%;
+          object-fit: contain;
+          object-position: left;
+          width: 300px;
+        }
+
+        > .controls {
+          display: flex;
+          flex-direction: column;
+          max-width: 100%;
+          padding: 30px 0;
+
+          > .MuiSlider-root {
+            color: $black;
+            margin: 0 auto;
+            max-width: calc(100% - 70px);
+          }
+
+          > button {
+            border: 0;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 18px;
+            margin-top: 10px;
+            padding: 15px;
+          }
+        }
+      }
+    }
+  }
+
+  > .footer {
+    padding-bottom: 20px;
+    text-align: center;
+  }
+}
+
+.react-autosuggest__container {
+  margin-top: 30px;
+  position: relative;
+  width: 100%;
+}
+
+.react-autosuggest__suggestions-container--open {
+  background: $white;
+  border: 1px solid $grey;
+  border-top-color: transparent;
+  box-sizing: border-box;
+  position: absolute;
+  width: 100%;
+  z-index: 2;
+}
+
+.react-autosuggest__suggestions-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.react-autosuggest__input {
+  border: 1px solid $grey;
+  border-radius: 5px;
+  box-sizing: border-box;
+  font-size: 20px;
+  padding: 10px;
+  width: 100%;
+
+  &.react-autosuggest__input--open {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  &.react-autosuggest__input--focused {
+    outline: none;
+  }
+}
+
+.react-autosuggest__suggestion {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  font-weight: bold;
+  height: 100px;
+  padding: 20px;
+
+  &.react-autosuggest__suggestion--highlighted {
+    background-color: $lightgrey;
+  }
+
+  > .poster {
+    padding-right: 10px;
+    width: 70px;
+
+    > img {
+      width: 100%;
+    }
+  }
+}
