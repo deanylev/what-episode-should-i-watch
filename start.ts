@@ -87,7 +87,7 @@ app.get('/episode/:imdbId', async (req, res) => {
       return;
     }
 
-    const parsedTotalSeasons = parseInt(totalSeasons, 10);
+    const parsedTotalSeasons = parseInt(totalSeasons, 10) || 1;
     const { seasonMax, seasonMin } = req.query;
     const parsedSeasonMin = typeof seasonMin === 'string' ? (parseInt(seasonMin, 10) || 1) : 1;
     const parsedSeasonMax = typeof seasonMax === 'string' ? (parseInt(seasonMax, 10) || parsedTotalSeasons) : parsedTotalSeasons;
@@ -99,13 +99,14 @@ app.get('/episode/:imdbId', async (req, res) => {
     for (let i = 0; i < LOOKUP_ATTEMPTS; i++) {
       season = await promisify<number, number, number>(randomInt)(seasonStart, seasonEnd + 1);
       const { Episodes } = await omdbQuery({ i: imdbId, season });
-      episode = await promisify<number, number, number>(randomInt)(1, Episodes.length + 1);
+      const numEpisodes = Episodes?.length ?? 1;
+      episode = await promisify<number, number, number>(randomInt)(1, numEpisodes + 1);
 
       ({ Plot, Poster, Title } = await omdbQuery({ i: imdbId, episode, season }));
 
       // some listings are missing these for some reason
       // if so, keep trying and eventually give up
-      if (Plot && Title) {
+      if (Plot && Title || numEpisodes === 1) {
         break;
       }
     }
@@ -123,6 +124,7 @@ app.get('/episode/:imdbId', async (req, res) => {
       imdbId,
       error
     });
+    res.sendStatus(500);
   }
 });
 
