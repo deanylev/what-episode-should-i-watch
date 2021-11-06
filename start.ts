@@ -51,12 +51,24 @@ app.get('/shows', async (req, res) => {
     return;
   }
 
+  console.log('querying shows', {
+    trimmedQuery
+  });
+
   try {
     const { Response, Search } = await omdbQuery({ s: trimmedQuery });
     if (Response !== 'True') {
+      console.log('no show results', {
+        trimmedQuery
+      });
       res.json([]);
       return;
     }
+
+    console.log('show results', {
+      trimmedQuery,
+      amount: Search.length
+    });
 
     res.json(Search.map(({ Poster, Title, Year, imdbID }: SearchResult) => {
       const [yearStart, yearEnd] = Year.split('–'); // not a normal dash
@@ -70,7 +82,7 @@ app.get('/shows', async (req, res) => {
     }));
   } catch (error) {
     console.error('error while querying shows', {
-      q,
+      trimmedQuery,
       error
     });
     res.sendStatus(500);
@@ -80,9 +92,16 @@ app.get('/shows', async (req, res) => {
 app.get('/episode/:imdbId', async (req, res) => {
   const { imdbId } = req.params;
 
+  console.log('querying show', {
+    imdbId
+  });
+
   try {
     const { Response, totalSeasons } = await omdbQuery({ i: imdbId });
     if (Response !== 'True') {
+      console.warn('show not found', {
+        imdbId
+      });
       res.sendStatus(404);
       return;
     }
@@ -110,6 +129,12 @@ app.get('/episode/:imdbId', async (req, res) => {
         break;
       }
     }
+
+    console.log('show result', {
+      imdbId,
+      season,
+      episode
+    });
 
     res.json({
       episode,
