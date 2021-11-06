@@ -36,7 +36,10 @@ interface State {
   suggestions: Suggestion[];
 }
 
-const API_URL = process.env.NODE_ENV === 'development' ? `http://${window.location.hostname}:8080` : '';
+const isDev = process.env.NODE_ENV === 'development';
+const API_URL = isDev ? `http://${window.location.hostname}:8080` : '';
+
+const STORAGE_KEY_SHOWS = 'seasonRangeByImdbId';
 
 class App extends Component<Props, State> {
   autosuggestRef: RefObject<Autosuggest> = createRef();
@@ -56,7 +59,6 @@ class App extends Component<Props, State> {
       suggestions: []
     };
 
-    this.fetchEpisode = this.fetchEpisode.bind(this);
     this.handleBodyClick = this.handleBodyClick.bind(this);
     this.handleSearchChange = this.handleSearchChange.bind(this);
     this.renderSuggestion = this.renderSuggestion.bind(this);
@@ -99,8 +101,19 @@ class App extends Component<Props, State> {
     }
   }
 
-  async fetchEpisode() {
+  addShowToStorage() {
     const { seasonMax, seasonMin, selectedSuggestion } = this.state;
+    if (!selectedSuggestion) {
+      return;
+    }
+
+    const storedShows = this.getStoredShows();
+    storedShows[selectedSuggestion.imdbId] = [seasonMin, seasonMax];
+    localStorage.setItem(STORAGE_KEY_SHOWS, JSON.stringify(storedShows));
+  }
+
+  async fetchEpisode(hasStored = false) {
+    const { episode, seasonMax, seasonMin, selectedSuggestion } = this.state;
     if (!selectedSuggestion) {
       return;
     }
@@ -109,11 +122,11 @@ class App extends Component<Props, State> {
       episodeInFlight: true
     });
     try {
-      const response = await fetch(`${API_URL}/episode/${selectedSuggestion.imdbId}?seasonMax=${seasonMax}&seasonMin=${seasonMin}`);
-      const episode = await response.json();
+      const response = await fetch(`${API_URL}/episode/${selectedSuggestion.imdbId}?seasonMin=${seasonMin}${(episode || hasStored) ? `&seasonMax=${seasonMax}` : ''}`);
+      const newEpisode = await response.json();
       await new Promise<void>((resolve) => {
         this.setState({
-          episode,
+          episode: newEpisode,
           episodeInFlight: false,
           fetchError: false
         }, () => resolve());
@@ -129,6 +142,15 @@ class App extends Component<Props, State> {
 
   formatRun(yearStart: number, yearEnd: number | null) {
     return `${yearStart} - ${yearEnd ?? 'Present'}`;
+  }
+
+  getStoredShows(): Record<string, number[]> {
+    const storedValue = localStorage.getItem(STORAGE_KEY_SHOWS);
+    try {
+      return JSON.parse(storedValue ?? '{}');
+    } catch {
+      return {};
+    }
   }
 
   handleBodyClick(event: Event) {
@@ -152,19 +174,27 @@ class App extends Component<Props, State> {
     this.setState({
       seasonMax,
       seasonMin
+    }, () => {
+      this.addShowToStorage();
     });
   }
 
   handleSuggestionSelected(suggestion: Suggestion) {
+    const [seasonMin, seasonMax] = this.getStoredShows()[suggestion.imdbId] ?? [];
+    const hasStored = !!(seasonMin && seasonMax)
     this.setState({
+      seasonMax: seasonMax ?? this.state.seasonMax,
+      seasonMin: seasonMin ?? this.state.seasonMin,
       selectedSuggestion: suggestion,
       suggestions: []
     }, async () => {
-      await this.fetchEpisode();
-      this.setState({
-        seasonMax: this.state.episode?.totalSeasons ?? 1,
-        seasonMin: 1
-      });
+      await this.fetchEpisode(hasStored);
+      if (!hasStored) {
+        this.setState({
+          seasonMax: this.state.episode?.totalSeasons ?? 1,
+          seasonMin: 1
+        });
+      }
     });
   }
 
@@ -195,7 +225,7 @@ class App extends Component<Props, State> {
             valueLabelDisplay="on"
             valueLabelFormat={(value) => `Season ${value}`}
           />
-          <button className="backgroundSecondary colorPrimary" onClick={this.fetchEpisode}>Show Me Another!</button>
+          <button className="backgroundSecondary colorPrimary" onClick={() => this.fetchEpisode()}>Show Me Another!</button>
         </div>
         <div className="heading colorSecondary">{selectedSuggestion.title}</div>
         <div className="subHeading colorSecondary">{this.formatRun(selectedSuggestion.yearStart, selectedSuggestion.yearEnd)}</div>
@@ -251,6 +281,7 @@ class App extends Component<Props, State> {
           </div>
         </div>
         <div className="footer colorSecondary">
+          {isDev && 'DEV BUILD | '}
           Made by <a className="colorSecondary" href="https://deanlevinson.com.au" rel="noreferrer" target="_blank">Dean Levinson</a> | <a className="colorSecondary" href="https://github.com/deanylev/what-episode-should-i-watch" rel="noreferrer" target="_blank">Source</a>
         </div>
       </div>
