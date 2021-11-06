@@ -16,10 +16,12 @@ interface Suggestion {
 
 interface Episode {
   episode: number;
-  plot: string;
+  imdbId: string | null;
+  imdbRating: string | null;
+  plot: string | null;
   posterUrl: PosterUrl;
   season: number;
-  title: string;
+  title: string | null;
   totalSeasons: number;
 }
 
@@ -227,14 +229,15 @@ class App extends Component<Props, State> {
           />
           <button className="backgroundSecondary colorPrimary" onClick={() => this.fetchEpisode()}>Show Me Another!</button>
         </div>
-        <div className="heading colorSecondary">{selectedSuggestion.title}</div>
-        <div className="subHeading colorSecondary">{this.formatRun(selectedSuggestion.yearStart, selectedSuggestion.yearEnd)}</div>
-        <div className="subHeading colorSecondary">Season</div>
-        <div className="colorSecondary">{episode.season}</div>
+        <a className="heading colorSecondary" href={`https://www.imdb.com/title/${selectedSuggestion.imdbId}`} rel="noreferrer" target="_blank">{selectedSuggestion.title} ({this.formatRun(selectedSuggestion.yearStart, selectedSuggestion.yearEnd)})</a>
         <div className="subHeading colorSecondary">Episode</div>
-        <div className="colorSecondary">{episode.episode}</div>
-        <div className="subHeading colorSecondary">Title</div>
-        <div className="colorSecondary">{episode.title ?? 'Missing'}</div>
+        <div className="colorSecondary">Season {episode.season}, Episode {episode.episode} {(episode.title && `- ${episode.title}`) || ''}</div>
+        {episode.imdbId && episode.imdbRating && (
+          <>
+            <div className="subHeading colorSecondary">IMDB Rating</div>
+            <a className="colorSecondary" href={`https://www.imdb.com/title/${episode.imdbId}`} rel="noreferrer" target="_blank">{episode.imdbRating}</a>
+          </>
+        )}
         <div className="subHeading colorSecondary">Plot</div>
         <div className="colorSecondary">{episode.plot ?? 'Missing'}</div>
         {episode.posterUrl && (

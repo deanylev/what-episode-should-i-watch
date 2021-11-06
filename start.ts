@@ -113,7 +113,7 @@ app.get('/episode/:imdbId', async (req, res) => {
     const seasonStart = Math.min(Math.max(1, parsedSeasonMin), parsedTotalSeasons);
     const seasonEnd = Math.max(Math.min(parsedSeasonMax, parsedTotalSeasons), seasonStart);
 
-    let Plot, Poster, Title, episode, season;
+    let Plot, Poster, Title, episode, imdbID, imdbRating, season;
 
     for (let i = 0; i < LOOKUP_ATTEMPTS; i++) {
       season = await promisify<number, number, number>(randomInt)(seasonStart, seasonEnd + 1);
@@ -121,7 +121,7 @@ app.get('/episode/:imdbId', async (req, res) => {
       const numEpisodes = Episodes?.length ?? 1;
       episode = await promisify<number, number, number>(randomInt)(1, numEpisodes + 1);
 
-      ({ Plot, Poster, Title } = await omdbQuery({ i: imdbId, episode, season }));
+      ({ Plot = null, Poster = 'N/A', Title = null, imdbID = null, imdbRating = 'N/A' } = await omdbQuery({ i: imdbId, episode, season }));
 
       // some listings are missing these for some reason
       // if so, keep trying and eventually give up
@@ -138,6 +138,8 @@ app.get('/episode/:imdbId', async (req, res) => {
 
     res.json({
       episode,
+      imdbId: imdbID,
+      imdbRating: imdbRating === 'N/A' ? null : imdbRating,
       plot: Plot,
       posterUrl: Poster === 'N/A' ? null : Poster,
       season,
