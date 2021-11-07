@@ -121,7 +121,12 @@ app.get('/episode/:imdbId', async (req, res) => {
       const numEpisodes = Episodes?.length ?? 1;
       episode = await promisify<number, number, number>(randomInt)(1, numEpisodes + 1);
 
-      ({ Plot = null, Poster = 'N/A', Title = null, imdbID = null, imdbRating = 'N/A' } = await omdbQuery({ i: imdbId, episode, season }));
+      ({ Plot = null, Poster = 'N/A', Title = null, imdbID = null, imdbRating = 'N/A' } = await omdbQuery({
+        episode,
+        i: imdbId,
+        plot: 'full',
+        season
+      }));
 
       // some listings are missing these for some reason
       // if so, keep trying and eventually give up
