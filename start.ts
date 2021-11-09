@@ -1,4 +1,4 @@
-import { randomInt } from 'crypto';
+import { randomBytes, randomInt } from 'crypto';
 import { AddressInfo } from 'net';
 import { promisify } from 'util';
 
@@ -43,6 +43,11 @@ const omdbQuery = async (params: Record<string, string | number>) => {
   return data;
 };
 
+const generateId = async () => {
+  const buffer = await promisify(randomBytes)(5);
+  return buffer.toString('hex');
+};
+
 app.get('/shows', async (req, res) => {
   const { q } = req.query;
   const trimmedQuery = typeof q === 'string' ? q.trim() : '';
@@ -51,22 +56,25 @@ app.get('/shows', async (req, res) => {
     return;
   }
 
+  const requestId = await generateId();
   console.log('querying shows', {
-    trimmedQuery
+    requestId,
+    trimmedQuery,
+    ip: req.headers['x-forwarded-for'] || req.socket.remoteAddress
   });
 
   try {
     const { Response, Search } = await omdbQuery({ s: trimmedQuery });
     if (Response !== 'True') {
       console.log('no show results', {
-        trimmedQuery
+        requestId
       });
       res.json([]);
       return;
     }
 
     console.log('show results', {
-      trimmedQuery,
+      requestId,
       amount: Search.length
     });
 
@@ -82,7 +90,7 @@ app.get('/shows', async (req, res) => {
     }));
   } catch (error) {
     console.error('error while querying shows', {
-      trimmedQuery,
+      requestId,
       error
     });
     res.sendStatus(500);
@@ -92,15 +100,18 @@ app.get('/shows', async (req, res) => {
 app.get('/episode/:imdbId', async (req, res) => {
   const { imdbId } = req.params;
 
+  const requestId = await generateId();
   console.log('querying show', {
-    imdbId
+    requestId,
+    imdbId,
+    ip: req.headers['x-forwarded-for'] || req.socket.remoteAddress
   });
 
   try {
     const { Response, totalSeasons } = await omdbQuery({ i: imdbId });
     if (Response !== 'True') {
       console.warn('show not found', {
-        imdbId
+        requestId
       });
       res.sendStatus(404);
       return;
@@ -136,7 +147,7 @@ app.get('/episode/:imdbId', async (req, res) => {
     }
 
     console.log('show result', {
-      imdbId,
+      requestId,
       season,
       episode
     });
@@ -153,7 +164,7 @@ app.get('/episode/:imdbId', async (req, res) => {
     });
   } catch (error) {
     console.error('error while querying show', {
-      imdbId,
+      requestId,
       error
     });
     res.sendStatus(500);
