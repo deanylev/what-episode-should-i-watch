@@ -118,19 +118,34 @@ app.get('/episode/:imdbId', async (req, res) => {
     }
 
     const parsedTotalSeasons = parseInt(totalSeasons, 10) || 1;
-    const { seasonMax, seasonMin } = req.query;
+    const { history, seasonMax, seasonMin } = req.query;
     const parsedSeasonMin = typeof seasonMin === 'string' ? (parseInt(seasonMin, 10) || 1) : 1;
     const parsedSeasonMax = typeof seasonMax === 'string' ? (parseInt(seasonMax, 10) || parsedTotalSeasons) : parsedTotalSeasons;
     const seasonStart = Math.min(Math.max(1, parsedSeasonMin), parsedTotalSeasons);
     const seasonEnd = Math.max(Math.min(parsedSeasonMax, parsedTotalSeasons), seasonStart);
 
-    let Plot, Poster, Title, episode, imdbID, imdbRating, season;
+    let parsedHistory: [number, number][] = [];
+    try {
+      parsedHistory = JSON.parse(history as string);
+
+      if (parsedHistory.some((element) => !Array.isArray(element) || element.length !== 2 || element.some((subElement) => typeof subElement !== 'number'))) {
+        parsedHistory = [];
+      }
+    } catch {
+      // swallow
+    }
+
+    let Plot, Poster, Title, episode, imdbID, imdbRating, season = -1;
 
     for (let i = 0; i < LOOKUP_ATTEMPTS; i++) {
       season = await promisify<number, number, number>(randomInt)(seasonStart, seasonEnd + 1);
       const { Episodes } = await omdbQuery({ i: imdbId, season });
       const numEpisodes = Episodes?.length ?? 1;
-      episode = await promisify<number, number, number>(randomInt)(1, numEpisodes + 1);
+      const episodeHistory = parsedHistory.filter(([historySeason]) => historySeason === season).map(([historySeason, historyEpisode]) => historyEpisode);
+
+      do {
+        episode = await promisify<number, number, number>(randomInt)(1, numEpisodes + 1);
+      } while (episodeHistory.length < numEpisodes ? episodeHistory.includes(episode) : episode === episodeHistory[episodeHistory.length - 1])
 
       ({ Plot = null, Poster = 'N/A', Title = null, imdbID = null, imdbRating = 'N/A' } = await omdbQuery({
         episode,

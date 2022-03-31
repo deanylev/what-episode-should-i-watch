@@ -29,6 +29,7 @@ interface Props {}
 
 interface State {
   episode: Episode | null;
+  episodeHistory: [number, number][];
   episodeInFlight: boolean;
   fetchError: boolean;
   search: string;
@@ -52,6 +53,7 @@ class App extends Component<Props, State> {
 
     this.state = {
       episode: null,
+      episodeHistory: [],
       episodeInFlight: false,
       fetchError: false,
       search: '',
@@ -115,7 +117,7 @@ class App extends Component<Props, State> {
   }
 
   async fetchEpisode(hasStored = false) {
-    const { episode, seasonMax, seasonMin, selectedSuggestion } = this.state;
+    const { episode, episodeHistory, seasonMax, seasonMin, selectedSuggestion } = this.state;
     if (!selectedSuggestion) {
       return;
     }
@@ -124,11 +126,12 @@ class App extends Component<Props, State> {
       episodeInFlight: true
     });
     try {
-      const response = await fetch(`${API_URL}/episode/${selectedSuggestion.imdbId}?seasonMin=${seasonMin}${(episode || hasStored) ? `&seasonMax=${seasonMax}` : ''}`);
+      const response = await fetch(`${API_URL}/episode/${selectedSuggestion.imdbId}?seasonMin=${seasonMin}${(episode || hasStored) ? `&seasonMax=${seasonMax}` : ''}&history=${encodeURIComponent(JSON.stringify(episodeHistory))}`);
       const newEpisode = await response.json();
       await new Promise<void>((resolve) => {
         this.setState({
           episode: newEpisode,
+          episodeHistory: this.getEpisodeHistory(newEpisode),
           episodeInFlight: false,
           fetchError: false
         }, () => resolve());
@@ -185,6 +188,7 @@ class App extends Component<Props, State> {
     const [seasonMin, seasonMax] = this.getStoredShows()[suggestion.imdbId] ?? [];
     const hasStored = !!(seasonMin && seasonMax)
     this.setState({
+      episodeHistory: [],
       seasonMax: seasonMax ?? this.state.seasonMax,
       seasonMin: seasonMin ?? this.state.seasonMin,
       selectedSuggestion: suggestion,
@@ -289,6 +293,15 @@ class App extends Component<Props, State> {
         </div>
       </div>
     );
+  }
+
+  getEpisodeHistory(newEpisode: Episode): [number, number][] {
+    const { episodeHistory } = this.state;
+    const seen = episodeHistory.some(([season, episode]) => season === newEpisode.season && episode === newEpisode.episode);
+    return [
+      ...seen ? episodeHistory.filter(([season]) => season !== newEpisode.season) : episodeHistory,
+      [newEpisode.season, newEpisode.episode]
+    ];
   }
 }
 
