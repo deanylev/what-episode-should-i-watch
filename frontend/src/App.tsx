@@ -7,21 +7,20 @@ import Autosuggest, { ChangeEvent, SuggestionsFetchRequestedParams } from 'react
 type PosterUrl = string | null;
 
 interface Suggestion {
-  imdbId: string;
+  id: string;
   posterUrl: PosterUrl;
   title: string;
-  yearEnd: number | null;
-  yearStart: number;
+  yearStart: string;
 }
 
 interface Episode {
   episode: number;
-  imdbId: string | null;
-  imdbRating: string | null;
-  plot: string | null;
+  plot: string;
   posterUrl: PosterUrl;
+  rating: string;
   season: number;
-  title: string | null;
+  showYearEnd: string | null;
+  title: string;
   totalSeasons: number;
 }
 
@@ -42,7 +41,7 @@ interface State {
 const isDev = process.env.NODE_ENV === 'development';
 const API_URL = isDev ? `http://${window.location.hostname}:8080` : '';
 
-const STORAGE_KEY_SHOWS = 'seasonRangeByImdbId';
+const STORAGE_KEY_SHOWS = 'seasonRangeById';
 
 class App extends Component<Props, State> {
   autosuggestRef: RefObject<Autosuggest> = createRef();
@@ -112,7 +111,7 @@ class App extends Component<Props, State> {
     }
 
     const storedShows = this.getStoredShows();
-    storedShows[selectedSuggestion.imdbId] = [seasonMin, seasonMax];
+    storedShows[selectedSuggestion.id] = [seasonMin, seasonMax];
     localStorage.setItem(STORAGE_KEY_SHOWS, JSON.stringify(storedShows));
   }
 
@@ -126,7 +125,7 @@ class App extends Component<Props, State> {
       episodeInFlight: true
     });
     try {
-      const response = await fetch(`${API_URL}/episode/${selectedSuggestion.imdbId}?seasonMin=${seasonMin}${(episode || hasStored) ? `&seasonMax=${seasonMax}` : ''}&history=${encodeURIComponent(JSON.stringify(episodeHistory))}`);
+      const response = await fetch(`${API_URL}/episode/${selectedSuggestion.id}?seasonMin=${seasonMin}${(episode || hasStored) ? `&seasonMax=${seasonMax}` : ''}&history=${encodeURIComponent(JSON.stringify(episodeHistory))}`);
       const newEpisode = await response.json();
       await new Promise<void>((resolve) => {
         this.setState({
@@ -145,7 +144,7 @@ class App extends Component<Props, State> {
     }
   }
 
-  formatRun(yearStart: number, yearEnd: number | null) {
+  formatRun(yearStart: string, yearEnd: string | null) {
     return `${yearStart} - ${yearEnd ?? 'Present'}`;
   }
 
@@ -185,7 +184,7 @@ class App extends Component<Props, State> {
   }
 
   handleSuggestionSelected(suggestion: Suggestion) {
-    const [seasonMin, seasonMax] = this.getStoredShows()[suggestion.imdbId] ?? [];
+    const [seasonMin, seasonMax] = this.getStoredShows()[suggestion.id] ?? [];
     const hasStored = !!(seasonMin && seasonMax)
     this.setState({
       episodeHistory: [],
@@ -233,17 +232,13 @@ class App extends Component<Props, State> {
           />
           <button className="backgroundSecondary colorPrimary" onClick={() => this.fetchEpisode()}>Show Me Another!</button>
         </div>
-        <a className="heading colorSecondary" href={`https://www.imdb.com/title/${selectedSuggestion.imdbId}`} rel="noreferrer" target="_blank">{selectedSuggestion.title} ({this.formatRun(selectedSuggestion.yearStart, selectedSuggestion.yearEnd)})</a>
+        <a className="heading colorSecondary" href={`https://www.themoviedb.org/tv/${selectedSuggestion.id}`} rel="noreferrer" target="_blank">{selectedSuggestion.title} ({this.formatRun(selectedSuggestion.yearStart, episode.showYearEnd)})</a>
         <div className="subHeading colorSecondary">Episode</div>
         <div className="colorSecondary">Season {episode.season}, Episode {episode.episode} {(episode.title && `- ${episode.title}`) || ''}</div>
-        {episode.imdbId && episode.imdbRating && (
-          <>
-            <div className="subHeading colorSecondary">IMDB Rating</div>
-            <a className="colorSecondary" href={`https://www.imdb.com/title/${episode.imdbId}`} rel="noreferrer" target="_blank">{episode.imdbRating}</a>
-          </>
-        )}
+        <div className="subHeading colorSecondary">TMDB Rating</div>
+        <a className="colorSecondary" href={`https://www.themoviedb.org/tv/${selectedSuggestion.id}/season/${episode.season}/episode/${episode.episode}`} rel="noreferrer" target="_blank">{episode.rating}</a>
         <div className="subHeading colorSecondary">Plot</div>
-        <div className="colorSecondary">{episode.plot ?? 'Missing'}</div>
+        <div className="colorSecondary">{episode.plot || 'Missing'}</div>
         {episode.posterUrl && (
           <img alt={`Poster for Season ${episode.season} Episode ${episode.episode} of ${selectedSuggestion.title}`} src={episode.posterUrl} />
         )}
@@ -251,13 +246,13 @@ class App extends Component<Props, State> {
     )
   }
 
-  renderSuggestion({ posterUrl, title, yearEnd, yearStart }: Suggestion) {
+  renderSuggestion({ posterUrl, title, yearStart }: Suggestion) {
     return (
       <>
         <div className="poster">
           {posterUrl && <img alt={`Poster for ${title}`} src={posterUrl} />}
         </div>
-        {title} ({this.formatRun(yearStart, yearEnd)})
+        {title} ({yearStart})
       </>
     );
   }

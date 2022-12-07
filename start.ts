@@ -2,26 +2,18 @@ import { randomBytes, randomInt } from 'crypto';
 import { AddressInfo } from 'net';
 import { promisify } from 'util';
 
-import axios from 'axios';
 import cors from 'cors';
 import express from 'express';
+import MovieDB from 'node-themoviedb';
 
-interface SearchResult {
-  Poster: string;
-  Title: string;
-  Type: string;
-  Year: string;
-  imdbID: string;
-}
+const { NODE_ENV, PORT, TMDB_API_KEY } = process.env;
 
-const { NODE_ENV, OMDB_API_KEY, PORT } = process.env;
-
-const LOOKUP_ATTEMPTS = 5;
-
-if (!OMDB_API_KEY) {
-  console.error('Error: missing OMDB API key');
+if (!TMDB_API_KEY) {
+  console.error('Error: missing TMDB API key');
   process.exit(1);
 }
+
+const mdb = new MovieDB(TMDB_API_KEY);
 
 const app = express();
 
@@ -31,21 +23,13 @@ if (NODE_ENV !== 'production') {
 
 app.use(express.static('frontend/build'));
 
-const omdbQuery = async (params: Record<string, string | number>) => {
-  const { data } = await axios.get('http://www.omdbapi.com', {
-    params: {
-      apikey: OMDB_API_KEY,
-      type: 'series',
-      ...params
-    },
-    responseType: 'json'
-  });
-  return data;
-};
-
 const generateId = async () => {
   const buffer = await promisify(randomBytes)(5);
   return buffer.toString('hex');
+};
+
+const constructImageUrl = (path: string) => {
+  return `https://image.tmdb.org/t/p/original/${path}`;
 };
 
 app.get('/shows', async (req, res) => {
@@ -64,28 +48,25 @@ app.get('/shows', async (req, res) => {
   });
 
   try {
-    const { Response, Search } = await omdbQuery({ s: trimmedQuery });
-    if (Response !== 'True') {
-      console.log('no show results', {
-        requestId
-      });
-      res.json([]);
-      return;
-    }
+    const { data: { results } } = await mdb.search.TVShows({
+      query: {
+        query: trimmedQuery
+      }
+    });
 
     console.log('show results', {
       requestId,
-      amount: Search.length
+      amount: results.length
     });
 
-    res.json(Search.map(({ Poster, Title, Year, imdbID }: SearchResult) => {
-      const [yearStart, yearEnd] = Year.split('–'); // not a normal dash
+    console.log(results);
+
+    res.json(results.map(({ first_air_date, id, name, poster_path }) => {
       return {
-        imdbId: imdbID,
-        posterUrl: Poster === 'N/A' ? null : Poster,
-        title: Title,
-        yearEnd: yearEnd ? parseInt(yearEnd, 10) : null,
-        yearStart: parseInt(yearStart, 10)
+        id,
+        posterUrl: poster_path && constructImageUrl(poster_path),
+        title: name,
+        yearStart: first_air_date && first_air_date.split('-')[0] || 'Unknown Year'
       };
     }));
   } catch (error) {
@@ -97,32 +78,28 @@ app.get('/shows', async (req, res) => {
   }
 });
 
-app.get('/episode/:imdbId', async (req, res) => {
-  const { imdbId } = req.params;
+app.get('/episode/:id', async (req, res) => {
+  const { id } = req.params;
 
   const requestId = await generateId();
   console.log('querying show', {
     requestId,
-    imdbId,
+    id,
     ip: req.headers['x-forwarded-for'] || req.socket.remoteAddress
   });
 
   try {
-    const { Response, totalSeasons } = await omdbQuery({ i: imdbId });
-    if (Response !== 'True') {
-      console.warn('show not found', {
-        requestId
-      });
-      res.sendStatus(404);
-      return;
-    }
+    const { data: { last_air_date, next_episode_to_air, number_of_seasons, seasons } } = await mdb.tv.getDetails({
+      pathParameters: {
+        tv_id: id
+      }
+    });
 
-    const parsedTotalSeasons = parseInt(totalSeasons, 10) || 1;
     const { history, seasonMax, seasonMin } = req.query;
     const parsedSeasonMin = typeof seasonMin === 'string' ? (parseInt(seasonMin, 10) || 1) : 1;
-    const parsedSeasonMax = typeof seasonMax === 'string' ? (parseInt(seasonMax, 10) || parsedTotalSeasons) : parsedTotalSeasons;
-    const seasonStart = Math.min(Math.max(1, parsedSeasonMin), parsedTotalSeasons);
-    const seasonEnd = Math.max(Math.min(parsedSeasonMax, parsedTotalSeasons), seasonStart);
+    const parsedSeasonMax = typeof seasonMax === 'string' ? (parseInt(seasonMax, 10) || number_of_seasons) : number_of_seasons;
+    const seasonStart = Math.min(Math.max(1, parsedSeasonMin), number_of_seasons);
+    const seasonEnd = Math.max(Math.min(parsedSeasonMax, number_of_seasons), seasonStart);
 
     let parsedHistory: [number, number][] = [];
     try {
@@ -135,31 +112,22 @@ app.get('/episode/:imdbId', async (req, res) => {
       // swallow
     }
 
-    let Plot, Poster, Title, episode, imdbID, imdbRating, season = -1;
+    const season = await promisify<number, number, number>(randomInt)(seasonStart, seasonEnd + 1);
+    const numEpisodes = seasons.find(({ season_number }) => season_number)?.episode_count ?? 1;
+    const episodeHistory = parsedHistory.filter(([historySeason]) => historySeason === season).map(([historySeason, historyEpisode]) => historyEpisode);
 
-    for (let i = 0; i < LOOKUP_ATTEMPTS; i++) {
-      season = await promisify<number, number, number>(randomInt)(seasonStart, seasonEnd + 1);
-      const { Episodes } = await omdbQuery({ i: imdbId, season });
-      const numEpisodes = Episodes?.length ?? 1;
-      const episodeHistory = parsedHistory.filter(([historySeason]) => historySeason === season).map(([historySeason, historyEpisode]) => historyEpisode);
+    let episode;
+    do {
+      episode = await promisify<number, number, number>(randomInt)(1, numEpisodes + 1);
+    } while (episodeHistory.length < numEpisodes ? episodeHistory.includes(episode) : episode === episodeHistory[episodeHistory.length - 1])
 
-      do {
-        episode = await promisify<number, number, number>(randomInt)(1, numEpisodes + 1);
-      } while (episodeHistory.length < numEpisodes ? episodeHistory.includes(episode) : episode === episodeHistory[episodeHistory.length - 1])
-
-      ({ Plot = null, Poster = 'N/A', Title = null, imdbID = null, imdbRating = 'N/A' } = await omdbQuery({
-        episode,
-        i: imdbId,
-        plot: 'full',
-        season
-      }));
-
-      // some listings are missing these for some reason
-      // if so, keep trying and eventually give up
-      if (Plot && Title || numEpisodes === 1) {
-        break;
+    const { data: { overview, still_path, name, vote_average } } = await mdb.tv.episode.getDetails({
+      pathParameters: {
+        tv_id: id,
+        season_number: season,
+        episode_number: episode
       }
-    }
+    });
 
     console.log('show result', {
       requestId,
@@ -169,15 +137,23 @@ app.get('/episode/:imdbId', async (req, res) => {
 
     res.json({
       episode,
-      imdbId: imdbID,
-      imdbRating: imdbRating === 'N/A' ? null : imdbRating,
-      plot: Plot,
-      posterUrl: Poster === 'N/A' ? null : Poster,
+      plot: overview,
+      posterUrl: still_path && constructImageUrl(still_path),
+      rating: vote_average.toFixed(1),
       season,
-      title: Title,
-      totalSeasons: parsedTotalSeasons
+      showYearEnd: next_episode_to_air ? null : last_air_date.split('-')[0],
+      title: name,
+      totalSeasons: number_of_seasons
     });
   } catch (error) {
+    if ((error as { errorCode: number; }).errorCode === 404) {
+      console.warn('show not found', {
+        requestId
+      });
+      res.sendStatus(404);
+      return;
+    }
+
     console.error('error while querying show', {
       requestId,
       error
