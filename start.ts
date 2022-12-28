@@ -113,7 +113,7 @@ app.get('/episode/:id', async (req, res) => {
     }
 
     const season = await promisify<number, number, number>(randomInt)(seasonStart, seasonEnd + 1);
-    const numEpisodes = seasons.find(({ season_number }) => season_number)?.episode_count ?? 1;
+    const numEpisodes = seasons.find(({ season_number }) => season_number === season)?.episode_count ?? 1;
     const episodeHistory = parsedHistory.filter(([historySeason]) => historySeason === season).map(([historySeason, historyEpisode]) => historyEpisode);
 
     let episode;
