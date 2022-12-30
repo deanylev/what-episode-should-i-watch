@@ -119,9 +119,9 @@ app.get('/episode/:id', async (req, res) => {
     let episode;
     do {
       episode = await promisify<number, number, number>(randomInt)(1, numEpisodes + 1);
-    } while (episodeHistory.length < numEpisodes ? episodeHistory.includes(episode) : episode === episodeHistory[episodeHistory.length - 1])
+    } while (episodeHistory.length < numEpisodes ? episodeHistory.includes(episode) : episode === episodeHistory[episodeHistory.length - 1]);
 
-    const { data: { overview, still_path, name, vote_average } } = await mdb.tv.episode.getDetails({
+    const { data: { name, overview, still_path, vote_average } } = await mdb.tv.episode.getDetails({
       pathParameters: {
         tv_id: id,
         season_number: season,
