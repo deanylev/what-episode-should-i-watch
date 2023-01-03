@@ -59,8 +59,6 @@ app.get('/shows', async (req, res) => {
       amount: results.length
     });
 
-    console.log(results);
-
     res.json(results.map(({ first_air_date, id, name, poster_path }) => {
       return {
         id,
