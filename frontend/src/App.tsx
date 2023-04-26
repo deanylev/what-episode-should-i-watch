@@ -29,8 +29,8 @@ interface Props {}
 interface State {
   episode: Episode | null;
   episodeHistory: [number, number][];
-  episodeInFlight: boolean;
   fetchError: boolean;
+  inFlight: boolean;
   search: string;
   seasonMax: number;
   seasonMin: number;
@@ -53,8 +53,8 @@ class App extends Component<Props, State> {
     this.state = {
       episode: null,
       episodeHistory: [],
-      episodeInFlight: false,
       fetchError: false,
+      inFlight: false,
       search: '',
       seasonMax: 1,
       seasonMin: 1,
@@ -69,6 +69,7 @@ class App extends Component<Props, State> {
 
   componentDidMount() {
     document.querySelector('body')?.addEventListener('click', this.handleBodyClick);
+    this.fetchFromParams();
   }
 
   componentWillUnmount() {
@@ -122,30 +123,79 @@ class App extends Component<Props, State> {
     }
 
     this.setState({
-      episodeInFlight: true
+      inFlight: true
     });
     try {
-      const response = await fetch(`${API_URL}/episode/${selectedSuggestion.id}?seasonMin=${seasonMin}${(episode || hasStored) ? `&seasonMax=${seasonMax}` : ''}&history=${encodeURIComponent(JSON.stringify(episodeHistory))}`);
+      const response = await fetch(`${API_URL}/episodes/${selectedSuggestion.id}?seasonMin=${seasonMin}${(episode || hasStored) ? `&seasonMax=${seasonMax}` : ''}&history=${encodeURIComponent(JSON.stringify(episodeHistory))}`);
       const newEpisode = await response.json();
       await new Promise<void>((resolve) => {
         this.setState({
           episode: newEpisode,
           episodeHistory: this.getEpisodeHistory(newEpisode),
-          episodeInFlight: false,
-          fetchError: false
+          fetchError: false,
+          inFlight: false
         }, () => resolve());
       });
+      const urlSearchParams = new URLSearchParams();
+      urlSearchParams.set('id', selectedSuggestion.id);
+      urlSearchParams.set('season', newEpisode.season);
+      urlSearchParams.set('episode', newEpisode.episode);
+      window.history.replaceState(null, '', `${window.location.pathname}?${urlSearchParams.toString()}`);
     } catch (error) {
       console.error(error);
       this.setState({
-        episodeInFlight: false,
+        fetchError: true,
+        inFlight: false
+      });
+    }
+  }
+
+  async fetchFromParams() {
+    const urlSearchParams = new URLSearchParams(window.location.search);
+    const id = urlSearchParams.get('id');
+    const season = urlSearchParams.get('season');
+    const episode = urlSearchParams.get('episode');
+    if (!(id && season && episode)) {
+      return;
+    }
+    this.setState({
+      inFlight: true
+    });
+    try {
+      const suggestionResponse = await fetch(`${API_URL}/shows/${id}`);
+      const suggestionData = await suggestionResponse.json();
+      const episodeResponse = await fetch(`${API_URL}/episodes/${id}/${season}/${episode}`);
+      const episodeData = await episodeResponse.json()
+      this.handleSuggestionSelected(suggestionData, () => new Promise((resolve) => {
+        this.setState({
+          episode: episodeData,
+          episodeHistory: this.getEpisodeHistory(episodeData),
+          search: suggestionData.title
+        }, resolve);
+      }));
+    } catch (error) {
+      console.error(error);
+      this.setState({
         fetchError: true
+      });
+    } finally {
+      this.setState({
+        inFlight: false
       });
     }
   }
 
   formatRun(yearStart: string, yearEnd: string | null) {
     return `${yearStart} - ${yearEnd ?? 'Present'}`;
+  }
+
+  getEpisodeHistory(newEpisode: Episode): [number, number][] {
+    const { episodeHistory } = this.state;
+    const seen = episodeHistory.some(([season, episode]) => season === newEpisode.season && episode === newEpisode.episode);
+    return [
+      ...seen ? episodeHistory.filter(([season]) => season !== newEpisode.season) : episodeHistory,
+      [newEpisode.season, newEpisode.episode]
+    ];
   }
 
   getStoredShows(): Record<string, number[]> {
@@ -183,7 +233,7 @@ class App extends Component<Props, State> {
     });
   }
 
-  handleSuggestionSelected(suggestion: Suggestion) {
+  handleSuggestionSelected(suggestion: Suggestion, callback: (hasStored: boolean) => Promise<void>) {
     const [seasonMin, seasonMax] = this.getStoredShows()[suggestion.id] ?? [];
     const hasStored = !!(seasonMin && seasonMax)
     this.setState({
@@ -193,7 +243,7 @@ class App extends Component<Props, State> {
       selectedSuggestion: suggestion,
       suggestions: []
     }, async () => {
-      await this.fetchEpisode(hasStored);
+      await callback(hasStored);
       if (!hasStored) {
         this.setState({
           seasonMax: this.state.episode?.totalSeasons ?? 1,
@@ -204,16 +254,8 @@ class App extends Component<Props, State> {
   }
 
   renderEpisode() {
-    const { episode, episodeInFlight, fetchError, seasonMax, seasonMin, selectedSuggestion } = this.state;
-    if (episodeInFlight) {
-      return <div className="episode colorSecondary">Loading...</div>
-    }
-
-    if (fetchError) {
-      return <div className="episode colorSecondary">An error occurred, please try again.</div>
-    }
-
-    if (!(episode && selectedSuggestion)) {
+    const { episode, fetchError, inFlight, seasonMax, seasonMin, selectedSuggestion } = this.state;
+    if (fetchError || inFlight || !episode || !selectedSuggestion) {
       return;
     }
 
@@ -258,7 +300,7 @@ class App extends Component<Props, State> {
   }
 
   render() {
-    const { search, suggestions } = this.state;
+    const { fetchError, inFlight, search, suggestions } = this.state;
     return (
       <div className="App">
         <div className="body">
@@ -269,16 +311,22 @@ class App extends Component<Props, State> {
               focusInputOnSuggestionClick={false}
               getSuggestionValue={(suggestion) => suggestion.title}
               inputProps={{
+                disabled: inFlight,
                 onChange: this.handleSearchChange,
                 placeholder: 'Search for a TV show...',
                 value: search
               }}
               onSuggestionsFetchRequested={this.handleSuggestionsFetchRequested}
-              onSuggestionSelected={(event, data) => this.handleSuggestionSelected(data.suggestion)}
+              onSuggestionSelected={(event, data) => this.handleSuggestionSelected(data.suggestion, (hasStored) => this.fetchEpisode(hasStored))}
               ref={this.autosuggestRef}
               renderSuggestion={this.renderSuggestion}
               suggestions={suggestions}
             />
+            {inFlight ? (
+              <div className="episode colorSecondary">Loading...</div>
+            ) : fetchError ? (
+              <div className="episode colorSecondary">An error occurred, please try again.</div>
+            ) : <></>}
             {this.renderEpisode()}
           </div>
         </div>
@@ -288,15 +336,6 @@ class App extends Component<Props, State> {
         </div>
       </div>
     );
-  }
-
-  getEpisodeHistory(newEpisode: Episode): [number, number][] {
-    const { episodeHistory } = this.state;
-    const seen = episodeHistory.some(([season, episode]) => season === newEpisode.season && episode === newEpisode.episode);
-    return [
-      ...seen ? episodeHistory.filter(([season]) => season !== newEpisode.season) : episodeHistory,
-      [newEpisode.season, newEpisode.episode]
-    ];
   }
 }
 
