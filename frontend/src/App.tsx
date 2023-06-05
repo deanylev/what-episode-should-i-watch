@@ -155,7 +155,7 @@ class App extends Component<Props, State> {
     const id = urlSearchParams.get('id');
     const season = urlSearchParams.get('season');
     const episode = urlSearchParams.get('episode');
-    if (!(id && season && episode)) {
+    if (!id) {
       return;
     }
     this.setState({
@@ -164,15 +164,23 @@ class App extends Component<Props, State> {
     try {
       const suggestionResponse = await fetch(`${API_URL}/shows/${id}`);
       const suggestionData = await suggestionResponse.json();
-      const episodeResponse = await fetch(`${API_URL}/episodes/${id}/${season}/${episode}`);
-      const episodeData = await episodeResponse.json()
-      this.handleSuggestionSelected(suggestionData, () => new Promise((resolve) => {
-        this.setState({
-          episode: episodeData,
-          episodeHistory: this.getEpisodeHistory(episodeData),
-          search: suggestionData.title
-        }, resolve);
-      }));
+
+      if (season && episode) {
+        const episodeResponse = await fetch(`${API_URL}/episodes/${id}/${season}/${episode}`);
+        const episodeData = await episodeResponse.json()
+        this.handleSuggestionSelected(suggestionData, () => new Promise((resolve) => {
+          this.setState({
+            episode: episodeData,
+            episodeHistory: this.getEpisodeHistory(episodeData),
+            search: suggestionData.title
+          }, resolve);
+        }));
+      } else {
+        await new Promise<void>((resolve, reject) => {
+          this.handleSuggestionSelected(suggestionData, () => resolve());
+        });
+        await this.fetchEpisode();
+      }
     } catch (error) {
       console.error(error);
       this.setState({
@@ -233,7 +241,7 @@ class App extends Component<Props, State> {
     });
   }
 
-  handleSuggestionSelected(suggestion: Suggestion, callback: (hasStored: boolean) => Promise<void>) {
+  handleSuggestionSelected(suggestion: Suggestion, callback?: (hasStored: boolean) => Promise<void> | void) {
     const [seasonMin, seasonMax] = this.getStoredShows()[suggestion.id] ?? [];
     const hasStored = !!(seasonMin && seasonMax)
     this.setState({
@@ -243,7 +251,7 @@ class App extends Component<Props, State> {
       selectedSuggestion: suggestion,
       suggestions: []
     }, async () => {
-      await callback(hasStored);
+      await callback?.(hasStored);
       if (!hasStored) {
         this.setState({
           seasonMax: this.state.episode?.totalSeasons ?? 1,
