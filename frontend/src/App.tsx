@@ -1,6 +1,7 @@
 import { Component, FormEvent, RefObject, createRef } from 'react';
 
 import Slider from '@mui/material/Slider';
+import { distance } from 'fastest-levenshtein';
 import debounce from 'lodash.debounce';
 import Autosuggest, { ChangeEvent, SuggestionsFetchRequestedParams } from 'react-autosuggest';
 
@@ -91,7 +92,8 @@ class App extends Component<Props, State> {
 
     try {
       const response = await fetch(`${API_URL}/shows?q=${trimmedSearch}`);
-      const suggestions = await response.json();
+      const suggestions: Suggestion[] = await response.json();
+      suggestions.sort((a, b) => distance(trimmedSearch, a.title) - distance(trimmedSearch, b.title));
       this.setState({
         fetchError: false,
         suggestions

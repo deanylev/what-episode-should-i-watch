@@ -30,11 +30,13 @@ const generateId = async () => {
 
 const constructImageUrl = (path: string) => `https://image.tmdb.org/t/p/original/${path}`;
 
+const isValidShow = ({ posterUrl, yearStart }: { posterUrl: string | null; yearStart: string | null }) => !!(posterUrl && yearStart)
+
 const serializeShow = ({ first_air_date, id, name, poster_path }: { first_air_date: string; id: number; name: string; poster_path: string | null; }) => ({
   id,
   posterUrl: poster_path && constructImageUrl(poster_path),
   title: name,
-  yearStart: first_air_date && first_air_date.split('-')[0] || 'Unknown Year'
+  yearStart: first_air_date && first_air_date.split('-')[0] || null
 });
 
 const serializeEpisode = ({ last_air_date, next_episode_to_air, number_of_seasons }: MovieDB.Responses.TV.GetDetails, { episode_number, name, overview, season_number, still_path, vote_average }: MovieDB.Responses.TV.Episode.GetDetails) => ({
@@ -75,7 +77,7 @@ app.get('/shows', async (req, res) => {
       amount: results.length
     });
 
-    res.json(results.map((show) => serializeShow(show)));
+    res.json(results.map((show) => serializeShow(show)).filter((show) => isValidShow(show)));
   } catch (error) {
     console.error('error while querying shows', {
       requestId,
@@ -95,7 +97,12 @@ app.get('/shows/:id', async (req, res) => {
         tv_id: id
       }
     });
-    res.json(serializeShow(data));
+    const show = serializeShow(data);
+    if (!isValidShow(show)) {
+      res.sendStatus(404);
+      return;
+    }
+    res.json(show);
   } catch (error) {
     if ((error as { errorCode: number; }).errorCode === 404) {
       res.sendStatus(404);
