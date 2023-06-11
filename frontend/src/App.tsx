@@ -129,20 +129,8 @@ class App extends Component<Props, State> {
     });
     try {
       const response = await fetch(`${API_URL}/episodes/${selectedSuggestion.id}?seasonMin=${seasonMin}${(episode || hasStored) ? `&seasonMax=${seasonMax}` : ''}&history=${encodeURIComponent(JSON.stringify(episodeHistory))}`);
-      const newEpisode = await response.json();
-      await new Promise<void>((resolve) => {
-        this.setState({
-          episode: newEpisode,
-          episodeHistory: this.getEpisodeHistory(newEpisode),
-          fetchError: false,
-          inFlight: false
-        }, () => resolve());
-      });
-      const urlSearchParams = new URLSearchParams();
-      urlSearchParams.set('id', selectedSuggestion.id);
-      urlSearchParams.set('season', newEpisode.season);
-      urlSearchParams.set('episode', newEpisode.episode);
-      window.history.replaceState(null, '', `${window.location.pathname}?${urlSearchParams.toString()}`);
+      const { episode: newEpisode } = await response.json();
+      this.setEpisodeState(selectedSuggestion.id, newEpisode);
     } catch (error) {
       console.error(error);
       this.setState({
@@ -164,28 +152,14 @@ class App extends Component<Props, State> {
       inFlight: true
     });
     try {
-      const suggestionResponse = await fetch(`${API_URL}/shows/${id}`);
-      const suggestionData = await suggestionResponse.json();
-
+      const episodeResponse = season && episode
+        ? await fetch(`${API_URL}/episodes/${id}/${season}/${episode}`)
+        : await fetch(`${API_URL}/episodes/${id}`);
+      const { episode: episodeData, show: showData, } = await episodeResponse.json()
       this.setState({
-        search: suggestionData.title
+        search: showData.title
       });
-
-      if (season && episode) {
-        const episodeResponse = await fetch(`${API_URL}/episodes/${id}/${season}/${episode}`);
-        const episodeData = await episodeResponse.json()
-        this.handleSuggestionSelected(suggestionData, () => new Promise((resolve) => {
-          this.setState({
-            episode: episodeData,
-            episodeHistory: this.getEpisodeHistory(episodeData)
-          }, resolve);
-        }));
-      } else {
-        await new Promise<void>((resolve, reject) => {
-          this.handleSuggestionSelected(suggestionData, () => resolve());
-        });
-        await this.fetchEpisode();
-      }
+      this.handleSuggestionSelected(showData, () => this.setEpisodeState(id, episodeData));
     } catch (error) {
       console.error(error);
       this.setState({
@@ -349,6 +323,20 @@ class App extends Component<Props, State> {
         </div>
       </div>
     );
+  }
+
+  async setEpisodeState(showId: string, episode: Episode) {
+    await new Promise<void>((resolve) => this.setState({
+      episode,
+      episodeHistory: this.getEpisodeHistory(episode),
+      fetchError: false,
+      inFlight: false
+    }, resolve));
+    const urlSearchParams = new URLSearchParams();
+    urlSearchParams.set('id', showId);
+    urlSearchParams.set('season', episode.season.toString());
+    urlSearchParams.set('episode', episode.episode.toString());
+    window.history.replaceState(null, '', `${window.location.pathname}?${urlSearchParams.toString()}`);
   }
 }
 

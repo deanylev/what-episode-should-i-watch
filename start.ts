@@ -175,7 +175,10 @@ app.get('/episodes/:showId', async (req, res) => {
       episode
     });
 
-    res.json(serializeEpisode(showData, episodeData));
+    res.json({
+      episode: serializeEpisode(showData, episodeData),
+      show: serializeShow(showData)
+    });
   } catch (error) {
     if ((error as { errorCode: number; }).errorCode === 404) {
       console.warn('show not found', {
@@ -210,7 +213,10 @@ app.get('/episodes/:showId/:season/:episode', async (req, res) => {
         episode_number: episode
       }
     });
-    res.json(serializeEpisode(showData, episodeData));
+    res.json({
+      episode: serializeEpisode(showData, episodeData),
+      show: serializeShow(showData)
+    });
   } catch (error) {
     if ((error as { errorCode: number; }).errorCode === 404) {
       res.sendStatus(404);
