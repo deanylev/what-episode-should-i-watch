@@ -165,14 +165,17 @@ class App extends Component<Props, State> {
       const suggestionResponse = await fetch(`${API_URL}/shows/${id}`);
       const suggestionData = await suggestionResponse.json();
 
+      this.setState({
+        search: suggestionData.title
+      });
+
       if (season && episode) {
         const episodeResponse = await fetch(`${API_URL}/episodes/${id}/${season}/${episode}`);
         const episodeData = await episodeResponse.json()
         this.handleSuggestionSelected(suggestionData, () => new Promise((resolve) => {
           this.setState({
             episode: episodeData,
-            episodeHistory: this.getEpisodeHistory(episodeData),
-            search: suggestionData.title
+            episodeHistory: this.getEpisodeHistory(episodeData)
           }, resolve);
         }));
       } else {
