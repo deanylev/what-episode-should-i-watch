@@ -1,7 +1,6 @@
 import { Component, FormEvent, RefObject, createRef } from 'react';
 
 import Slider from '@mui/material/Slider';
-import { distance } from 'fastest-levenshtein';
 import debounce from 'lodash.debounce';
 import Autosuggest, { ChangeEvent, SuggestionsFetchRequestedParams } from 'react-autosuggest';
 
@@ -9,6 +8,7 @@ type PosterUrl = string | null;
 
 interface Suggestion {
   id: string;
+  popularity: number;
   posterUrl: PosterUrl;
   title: string;
   yearStart: string;
@@ -30,6 +30,8 @@ interface Props {}
 interface State {
   episode: Episode | null;
   episodeHistory: [number, number][];
+  episodeHistoryFull: Episode[];
+  episodePosterInFlight: boolean;
   fetchError: boolean;
   inFlight: boolean;
   search: string;
@@ -48,12 +50,20 @@ class App extends Component<Props, State> {
   autosuggestRef: RefObject<Autosuggest> = createRef();
   handleSuggestionsFetchRequested = debounce(this._handleSuggestionsFetchRequested.bind(this), 500);
 
-  constructor(props: Props) {
-    super(props);
+  get currentEpisodeIndex() {
+    const { episode, episodeHistoryFull } = this.state;
+    if (!episode) {
+      return -1;
+    }
+    return episodeHistoryFull.indexOf(episode);
+  }
 
-    this.state = {
+  get initialState(): State {
+    return {
       episode: null,
       episodeHistory: [],
+      episodeHistoryFull: [],
+      episodePosterInFlight: false,
       fetchError: false,
       inFlight: false,
       search: '',
@@ -62,6 +72,12 @@ class App extends Component<Props, State> {
       selectedSuggestion: null,
       suggestions: []
     };
+  }
+
+  constructor(props: Props) {
+    super(props);
+
+    this.state = this.initialState;
 
     this.handleBodyClick = this.handleBodyClick.bind(this);
     this.handleSearchChange = this.handleSearchChange.bind(this);
@@ -93,7 +109,7 @@ class App extends Component<Props, State> {
     try {
       const response = await fetch(`${API_URL}/shows?q=${trimmedSearch}`);
       const suggestions: Suggestion[] = await response.json();
-      suggestions.sort((a, b) => distance(trimmedSearch, a.title) - distance(trimmedSearch, b.title));
+      suggestions.sort((a, b) => b.popularity - a.popularity);
       this.setState({
         fetchError: false,
         suggestions
@@ -194,6 +210,24 @@ class App extends Component<Props, State> {
     }
   }
 
+  goNextEpisode() {
+    const { episode, episodeHistoryFull, selectedSuggestion } = this.state;
+    if (!episode || !selectedSuggestion) {
+      return;
+    }
+
+    this.setEpisodeState(selectedSuggestion.id, episodeHistoryFull[this.currentEpisodeIndex + 1]);
+  }
+
+  goPrevEpisode() {
+    const { episode, episodeHistoryFull, selectedSuggestion } = this.state;
+    if (!episode || !selectedSuggestion) {
+      return;
+    }
+
+    this.setEpisodeState(selectedSuggestion.id, episodeHistoryFull[this.currentEpisodeIndex - 1]);
+  }
+
   handleBodyClick(event: Event) {
     const autosuggestRef = this.autosuggestRef as unknown as { current: { suggestionsContainer: HTMLDivElement } };
     if (event.composedPath().includes(autosuggestRef.current.suggestionsContainer)) {
@@ -225,6 +259,7 @@ class App extends Component<Props, State> {
     const hasStored = !!(seasonMin && seasonMax)
     this.setState({
       episodeHistory: [],
+      episodeHistoryFull: [],
       seasonMax: seasonMax ?? this.state.seasonMax,
       seasonMin: seasonMin ?? this.state.seasonMin,
       selectedSuggestion: suggestion,
@@ -241,7 +276,7 @@ class App extends Component<Props, State> {
   }
 
   renderEpisode() {
-    const { episode, fetchError, inFlight, seasonMax, seasonMin, selectedSuggestion } = this.state;
+    const { episode, episodeHistoryFull, episodePosterInFlight, fetchError, inFlight, seasonMax, seasonMin, selectedSuggestion } = this.state;
     if (fetchError || inFlight || !episode || !selectedSuggestion) {
       return;
     }
@@ -259,18 +294,33 @@ class App extends Component<Props, State> {
             valueLabelDisplay="on"
             valueLabelFormat={(value) => `Season ${value}`}
           />
-          <button className="backgroundSecondary colorPrimary" onClick={() => this.fetchEpisode()}>Show Me Another!</button>
+          <button className="backgroundSecondary colorPrimary" onClick={() => this.fetchEpisode()}>Another!</button>
         </div>
-        <a className="heading colorSecondary" href={`https://www.themoviedb.org/tv/${selectedSuggestion.id}`} rel="noreferrer" target="_blank">{selectedSuggestion.title} ({this.formatRun(selectedSuggestion.yearStart, episode.showYearEnd)})</a>
-        <div className="subHeading colorSecondary">Episode</div>
-        <div className="colorSecondary">Season {episode.season}, Episode {episode.episode} {(episode.title && `- ${episode.title}`) || ''}</div>
-        <div className="subHeading colorSecondary">TMDB Rating</div>
-        <a className="colorSecondary" href={`https://www.themoviedb.org/tv/${selectedSuggestion.id}/season/${episode.season}/episode/${episode.episode}`} rel="noreferrer" target="_blank">{episode.rating}</a>
-        <div className="subHeading colorSecondary">Plot</div>
-        <div className="colorSecondary">{episode.plot || 'Missing'}</div>
-        {episode.posterUrl && (
-          <img alt={`Poster for Season ${episode.season} Episode ${episode.episode} of ${selectedSuggestion.title}`} src={episode.posterUrl} />
-        )}
+        <div className="details">
+          <div className="text">
+            <a className="heading colorSecondary" href={`https://www.themoviedb.org/tv/${selectedSuggestion.id}`} rel="noreferrer" target="_blank">{selectedSuggestion.title} ({this.formatRun(selectedSuggestion.yearStart, episode.showYearEnd)})</a>
+            <div className="buttons">
+              <button disabled={this.currentEpisodeIndex === 0} onClick={() => this.goPrevEpisode()}>👈 Go Back</button>
+              <button disabled={this.currentEpisodeIndex === episodeHistoryFull.length - 1} onClick={() => this.goNextEpisode()}>👉 Go Forward</button>
+            </div>
+            <div className="subHeading colorSecondary">Episode</div>
+            <div className="colorSecondary">Season {episode.season}, Episode {episode.episode} {(episode.title && `- ${episode.title}`) || ''}</div>
+            <div className="subHeading colorSecondary">TMDB Rating</div>
+            <a className="colorSecondary" href={`https://www.themoviedb.org/tv/${selectedSuggestion.id}/season/${episode.season}/episode/${episode.episode}`} rel="noreferrer" target="_blank">{episode.rating}</a>
+            <div className="subHeading colorSecondary">Plot</div>
+            <div className="colorSecondary">{episode.plot || 'Missing'}</div>
+          </div>
+          {episode.posterUrl && (
+            <div className="poster">
+              <img
+                alt={`Poster for Season ${episode.season} Episode ${episode.episode} of ${selectedSuggestion.title}`}
+                className={episodePosterInFlight ? 'inFlight' : ''}
+                onLoad={() => this.setState({ episodePosterInFlight: false })}
+                src={episode.posterUrl}
+              />
+            </div>
+          )}
+        </div>
       </div>
     )
   }
@@ -291,7 +341,7 @@ class App extends Component<Props, State> {
     return (
       <div className="App">
         <div className="body">
-          <div className="heading colorSecondary">What Episode Should I Watch?</div>
+          <button className="heading colorSecondary" onClick={() => this.resetState()}>What Episode Should I Watch?</button>
           <div className="content">
             <Autosuggest
               alwaysRenderSuggestions
@@ -325,13 +375,26 @@ class App extends Component<Props, State> {
     );
   }
 
+  resetState() {
+    this.setState(this.initialState);
+    window.history.replaceState(null, '', window.location.pathname);
+  }
+
   async setEpisodeState(showId: string, episode: Episode) {
-    await new Promise<void>((resolve) => this.setState({
+    const { episodeHistoryFull } = this.state;
+    const state: State = {
+      ...this.state,
       episode,
-      episodeHistory: this.getEpisodeHistory(episode),
+      episodePosterInFlight: !!episode.posterUrl,
       fetchError: false,
       inFlight: false
-    }, resolve));
+    };
+    if (!episodeHistoryFull.includes(episode)) {
+      state.episodeHistory = this.getEpisodeHistory(episode);
+      state.episodeHistoryFull = [...this.state.episodeHistoryFull, episode];
+    }
+
+    await new Promise<void>((resolve) => this.setState(state, resolve));
     const urlSearchParams = new URLSearchParams();
     urlSearchParams.set('id', showId);
     urlSearchParams.set('season', episode.season.toString());

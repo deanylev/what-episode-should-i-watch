@@ -32,8 +32,9 @@ const constructImageUrl = (path: string) => `https://image.tmdb.org/t/p/original
 
 const isValidShow = ({ posterUrl, yearStart }: { posterUrl: string | null; yearStart: string | null }) => !!(posterUrl && yearStart)
 
-const serializeShow = ({ first_air_date, id, name, poster_path }: { first_air_date: string; id: number; name: string; poster_path: string | null; }) => ({
+const serializeShow = ({ first_air_date, id, name, popularity, poster_path }: { first_air_date: string; id: number; name: string; popularity: number; poster_path: string | null; }) => ({
   id,
+  popularity,
   posterUrl: poster_path && constructImageUrl(poster_path),
   title: name,
   yearStart: first_air_date && first_air_date.split('-')[0] || null

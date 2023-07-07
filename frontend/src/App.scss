@@ -1,54 +1,17 @@
 .backgroundPrimary {
-  background: $white;
-}
-
-.backgroundSecondary {
   background: $black;
 }
 
-.colorPrimary {
-  color: $white;
+.backgroundSecondary {
+  background: $white;
 }
 
-.colorSecondary {
+.colorPrimary {
   color: $black;
 }
 
-@media (prefers-color-scheme: dark) {
-  .backgroundPrimary {
-    background: $black;
-  }
-
-  .backgroundSecondary {
-    background: $white;
-  }
-
-
-  .colorPrimary {
-    color: $black;
-  }
-
-  .colorSecondary {
-    color: $white;
-  }
-
-  .react-autosuggest__input {
-    background: $black;
-    color: $white;
-  }
-
-  .react-autosuggest__suggestion {
-    background: $black;
-    color: $white;
-
-    &.react-autosuggest__suggestion--highlighted {
-      color: $black;
-    }
-  }
-
-  .App > .body > .content > .episode > .controls > .MuiSlider-root {
-    color: $white !important;
-  }
+.colorSecondary {
+  color: $white;
 }
 
 .App {
@@ -65,15 +28,15 @@
     flex-direction: column;
 
     > .heading {
-      font-size: 60px;
+      background: transparent;
+      border: 0;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 40px;
       font-weight: 800;
       letter-spacing: -1.8px;
       padding: 0 10px;
       text-align: center;
-
-      @media only screen and (max-width: 600px) {
-        font-size: 48px;
-      }
     }
 
     > .content {
@@ -83,46 +46,95 @@
       > .episode {
         padding: 25px 0;
 
-        > .heading {
-          font-size: 36px;
-          font-weight: 800;
-          letter-spacing: -1.8px;
-        }
-
-        > .subHeading {
-          font-size: 24px;
-          font-weight: 800;
-          letter-spacing: -1px;
-          padding: 10px 0;
-        }
-
-        > img {
-          height: 169px;
-          margin-top: 25px;
-          max-width: 100%;
-          object-fit: contain;
-          object-position: left;
-        }
-
         > .controls {
+          align-items: flex-end;
           display: flex;
-          flex-direction: column;
+          gap: 70px;
           max-width: 100%;
-          padding: 30px 0;
+          padding: 15px 0;
 
           > .MuiSlider-root {
-            color: $black;
-            margin: 0 auto;
-            max-width: calc(100% - 70px);
+            color: $white;
+            margin-left: 45px;
           }
 
           > button {
+            background: #e0a102;
             border: 0;
             border-radius: 5px;
+            color: $white;
             cursor: pointer;
+            flex-shrink: 0;
+            font-family: inherit;
             font-size: 18px;
-            margin-top: 10px;
-            padding: 15px;
+            padding: 10px;
+          }
+        }
+
+        > .details {
+          align-items: center;
+          display: flex;
+          gap: 40px;
+
+          @media only screen and (max-width: 600px) {
+            align-items: flex-start;
+            flex-direction: column;
+            gap: 25px;
+          }
+
+          > .text {
+            flex: 2;
+
+            > .heading {
+              font-size: 28px;
+              font-weight: 800;
+              letter-spacing: -1.8px;
+            }
+
+            > .subHeading {
+              font-size: 20px;
+              font-weight: 800;
+              letter-spacing: -1px;
+              padding: 10px 0;
+            }
+
+            > .buttons {
+              margin-top: 15px;
+
+              > button {
+                background: transparent;
+                border: 0;
+                color: $white;
+                cursor: pointer;
+                font-family: inherit;
+                font-size: 15px;
+                font-weight: bold;
+
+                &:disabled {
+                  opacity: 0.4;
+                }
+              }
+            }
+          }
+
+          > .poster {
+            flex: 1;
+
+            > img {
+              border-radius: 5px;
+              height: 100%;
+              object-fit: contain;
+              object-position: left;
+              width: 100%;
+
+              @media only screen and (max-width: 600px) {
+                height: 169px;
+              }
+
+              &.inFlight {
+                opacity: 0;
+              }
+            }
           }
         }
       }
@@ -158,9 +170,11 @@
 }
 
 .react-autosuggest__input {
+  background: $black;
   border: 1px solid $grey;
   border-radius: 5px;
   box-sizing: border-box;
+  color: $white;
   font-size: 20px;
   padding: 10px;
   width: 100%;
@@ -177,6 +191,8 @@
 
 .react-autosuggest__suggestion {
   align-items: center;
+  background: $black;
+  color: $white;
   cursor: pointer;
   display: flex;
   font-weight: bold;
@@ -185,6 +201,7 @@
 
   &.react-autosuggest__suggestion--highlighted {
     background-color: $lightgrey;
+    color: $black;
   }
 
   > .poster {
