@@ -153,6 +153,12 @@
   width: 100%;
 }
 
+.react-autosuggest__container--open[data-disabled='true'] > div > ul > li:hover {
+  background: $black;
+  color: $white;
+  cursor: unset;
+}
+
 .react-autosuggest__suggestions-container--open {
   border: 1px solid $grey;
   border-bottom-left-radius: 5px;

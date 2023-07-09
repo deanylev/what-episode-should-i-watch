@@ -1,12 +1,12 @@
 import { Component, FormEvent, RefObject, createRef } from 'react';
 
 import Slider from '@mui/material/Slider';
-import debounce from 'lodash.debounce';
 import Autosuggest, { ChangeEvent, SuggestionsFetchRequestedParams } from 'react-autosuggest';
 
 type PosterUrl = string | null;
 
 interface Suggestion {
+  disabled?: boolean;
   id: string;
   popularity: number;
   posterUrl: PosterUrl;
@@ -36,6 +36,7 @@ interface State {
   hideSuggestions: boolean;
   inFlight: boolean;
   search: string;
+  searchDebounceTimeout: number | null;
   searchInFlight: boolean;
   seasonMax: number;
   seasonMin: number;
@@ -46,11 +47,12 @@ interface State {
 const isDev = process.env.NODE_ENV === 'development';
 const API_URL = isDev ? `http://${window.location.hostname}:8080` : '';
 
+const SEARCH_DEBOUNCE_INTERVAL = 500;
 const STORAGE_KEY_SHOWS = 'seasonRangeById';
 
 class App extends Component<Props, State> {
   autosuggestRef: RefObject<Autosuggest> = createRef();
-  handleSuggestionsFetchRequested = debounce(this._handleSuggestionsFetchRequested.bind(this), 500);
+  debouncePromise = Promise.resolve();
 
   get currentEpisodeIndex() {
     const { episode, episodeHistoryFull } = this.state;
@@ -70,6 +72,7 @@ class App extends Component<Props, State> {
       hideSuggestions: false,
       inFlight: false,
       search: '',
+      searchDebounceTimeout: null,
       searchInFlight: false,
       seasonMax: 1,
       seasonMin: 1,
@@ -85,6 +88,7 @@ class App extends Component<Props, State> {
 
     this.handleBodyClick = this.handleBodyClick.bind(this);
     this.handleSearchChange = this.handleSearchChange.bind(this);
+    this.handleSuggestionsFetchRequested = this.handleSuggestionsFetchRequested.bind(this);
     this.renderSuggestion = this.renderSuggestion.bind(this);
   }
 
@@ -249,8 +253,9 @@ class App extends Component<Props, State> {
   }
 
   handleBodyClick(event: Event) {
-    const autosuggestRef = this.autosuggestRef as unknown as { current: { suggestionsContainer: HTMLDivElement } };
-    if (event.composedPath().includes(autosuggestRef.current.suggestionsContainer)) {
+    const { current: { input, suggestionsContainer } } = this.autosuggestRef as unknown as { current: { input: HTMLInputElement; suggestionsContainer: HTMLDivElement } };
+    const composedPath = event.composedPath();
+    if (composedPath.includes(suggestionsContainer) || composedPath.includes(input)) {
       return;
     }
 
@@ -274,8 +279,28 @@ class App extends Component<Props, State> {
     });
   }
 
+  handleSuggestionsFetchRequested(params: SuggestionsFetchRequestedParams) {
+    this.debouncePromise = this.debouncePromise.then(async () => {
+      const { searchDebounceTimeout } = this.state;
+      if (searchDebounceTimeout !== null) {
+        clearTimeout(searchDebounceTimeout);
+      }
+
+      await new Promise<void>((resolve) => {
+        this.setState({
+          searchDebounceTimeout: window.setTimeout(() => {
+            this._handleSuggestionsFetchRequested(params);
+            this.setState({
+              searchDebounceTimeout: null
+            });
+          }, SEARCH_DEBOUNCE_INTERVAL)
+        }, resolve);
+      });
+    });
+  }
+
   handleSuggestionSelected(suggestion: Suggestion, callback?: (hasStored: boolean) => Promise<void> | void) {
-    if (this.state.searchInFlight) {
+    if (suggestion.disabled) {
       return;
     }
 
@@ -351,35 +376,69 @@ class App extends Component<Props, State> {
     )
   }
 
-  renderSuggestion({ posterUrl, title, yearStart }: Suggestion) {
+  renderSuggestion({ disabled, posterUrl, title, yearStart }: Suggestion) {
     return (
       <>
-        <div className="poster">
-          {posterUrl && <img alt={`Poster for ${title}`} src={posterUrl} />}
-        </div>
+        {!disabled && (
+          <div className="poster">
+            {posterUrl && <img alt={`Poster for ${title}`} src={posterUrl} />}
+          </div>
+        )}
         {title}{yearStart ? ` (${yearStart})` : ''}
       </>
     );
   }
 
   render() {
-    const { fetchError, hideSuggestions, inFlight, search, searchInFlight, suggestions } = this.state;
+    const { fetchError, hideSuggestions, inFlight, search, searchDebounceTimeout, searchInFlight, suggestions: cachedSuggestions } = this.state;
     const loadingSuggestion: Suggestion = {
+      disabled: true,
       id: 'loading',
       popularity: 0,
       posterUrl: null,
       title: 'Loading...',
       yearStart: '',
     };
+    const noResultsSuggestion: Suggestion = {
+      disabled: true,
+      id: 'no-results',
+      popularity: 0,
+      posterUrl: null,
+      title: 'No Results',
+      yearStart: ''
+    };
+    const getSuggestions = () => {
+      if (searchInFlight) {
+        return [loadingSuggestion];
+      }
+
+      if (!search.trim() || searchDebounceTimeout !== null) {
+        return [];
+      }
+
+      if (cachedSuggestions.length === 0) {
+        return [noResultsSuggestion];
+      }
+
+      if (hideSuggestions) {
+        return [];
+      }
+
+      return cachedSuggestions;
+    };
+    const suggestions = getSuggestions();
+    const disabledSuggestion = !!suggestions[0]?.disabled;
     return (
       <div className="App">
         <div className="body">
           <button className="heading colorSecondary" onClick={() => this.resetState()}>What Episode Should I Watch?</button>
           <div className="content">
             <Autosuggest
-              alwaysRenderSuggestions={true}
+              containerProps={{
+                'data-disabled': disabledSuggestion.toString()
+              } as Autosuggest.ContainerProps}
               focusInputOnSuggestionClick={false}
-              getSuggestionValue={(suggestion) => searchInFlight ? search : suggestion.title}
+              getSuggestionValue={(suggestion) => disabledSuggestion ? search : suggestion.title}
               inputProps={{
                 disabled: inFlight,
                 onChange: this.handleSearchChange,
@@ -390,7 +449,7 @@ class App extends Component<Props, State> {
               onSuggestionSelected={(event, data) => this.handleSuggestionSelected(data.suggestion, (hasStored) => this.fetchEpisode(hasStored))}
               ref={this.autosuggestRef}
               renderSuggestion={this.renderSuggestion}
-              suggestions={searchInFlight ? [loadingSuggestion] : hideSuggestions ? [] : suggestions}
+              suggestions={suggestions}
             />
             {inFlight ? (
               <div className="episode colorSecondary">Loading...</div>
