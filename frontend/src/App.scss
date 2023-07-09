@@ -154,9 +154,10 @@
 }
 
 .react-autosuggest__suggestions-container--open {
-  background: $white;
   border: 1px solid $grey;
-  border-top-color: transparent;
+  border-bottom-left-radius: 5px;
+  border-bottom-right-radius: 5px;
+  border-top: 0;
   box-sizing: border-box;
   position: absolute;
   width: 100%;
@@ -192,6 +193,7 @@
 .react-autosuggest__suggestion {
   align-items: center;
   background: $black;
+  border-radius: 5px;
   color: $white;
   cursor: pointer;
   display: flex;
@@ -209,6 +211,7 @@
     width: 70px;
 
     > img {
+      border-radius: 5px;
       width: 100%;
     }
   }

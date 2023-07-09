@@ -33,8 +33,10 @@ interface State {
   episodeHistoryFull: Episode[];
   episodePosterInFlight: boolean;
   fetchError: boolean;
+  hideSuggestions: boolean;
   inFlight: boolean;
   search: string;
+  searchInFlight: boolean;
   seasonMax: number;
   seasonMin: number;
   selectedSuggestion: Suggestion | null;
@@ -65,8 +67,10 @@ class App extends Component<Props, State> {
       episodeHistoryFull: [],
       episodePosterInFlight: false,
       fetchError: false,
+      hideSuggestions: false,
       inFlight: false,
       search: '',
+      searchInFlight: false,
       seasonMax: 1,
       seasonMin: 1,
       selectedSuggestion: null,
@@ -98,6 +102,13 @@ class App extends Component<Props, State> {
       return;
     }
 
+    if (reason === 'input-focused' && this.state.suggestions.length > 0) {
+      this.setState({
+        hideSuggestions: false,
+      });
+      return;
+    }
+
     const trimmedSearch = value.trim();
     if (!trimmedSearch) {
       this.setState({
@@ -105,6 +116,11 @@ class App extends Component<Props, State> {
       });
       return;
     }
+
+    this.setState({
+      hideSuggestions: false,
+      searchInFlight: true
+    });
 
     try {
       const response = await fetch(`${API_URL}/shows?q=${trimmedSearch}`);
@@ -119,6 +135,10 @@ class App extends Component<Props, State> {
       this.setState({
         fetchError: true,
         suggestions: []
+      });
+    } finally {
+      this.setState({
+        searchInFlight: false
       });
     }
   }
@@ -235,7 +255,7 @@ class App extends Component<Props, State> {
     }
 
     this.setState({
-      suggestions: []
+      hideSuggestions: true
     });
   }
 
@@ -255,15 +275,19 @@ class App extends Component<Props, State> {
   }
 
   handleSuggestionSelected(suggestion: Suggestion, callback?: (hasStored: boolean) => Promise<void> | void) {
+    if (this.state.searchInFlight) {
+      return;
+    }
+
     const [seasonMin, seasonMax] = this.getStoredShows()[suggestion.id] ?? [];
     const hasStored = !!(seasonMin && seasonMax)
     this.setState({
       episodeHistory: [],
       episodeHistoryFull: [],
+      hideSuggestions: true,
       seasonMax: seasonMax ?? this.state.seasonMax,
       seasonMin: seasonMin ?? this.state.seasonMin,
-      selectedSuggestion: suggestion,
-      suggestions: []
+      selectedSuggestion: suggestion
     }, async () => {
       await callback?.(hasStored);
       if (!hasStored) {
@@ -298,7 +322,9 @@ class App extends Component<Props, State> {
         </div>
         <div className="details">
           <div className="text">
-            <a className="heading colorSecondary" href={`https://www.themoviedb.org/tv/${selectedSuggestion.id}`} rel="noreferrer" target="_blank">{selectedSuggestion.title} ({this.formatRun(selectedSuggestion.yearStart, episode.showYearEnd)})</a>
+            <span className="heading colorSecondary">
+              <a className="colorSecondary" href={`https://www.themoviedb.org/tv/${selectedSuggestion.id}`} rel="noreferrer" target="_blank">{selectedSuggestion.title}</a> ({this.formatRun(selectedSuggestion.yearStart, episode.showYearEnd)})
+            </span>
             <div className="buttons">
               <button disabled={this.currentEpisodeIndex === 0} onClick={() => this.goPrevEpisode()}>👈 Go Back</button>
               <button disabled={this.currentEpisodeIndex === episodeHistoryFull.length - 1} onClick={() => this.goNextEpisode()}>👉 Go Forward</button>
@@ -331,22 +357,29 @@ class App extends Component<Props, State> {
         <div className="poster">
           {posterUrl && <img alt={`Poster for ${title}`} src={posterUrl} />}
         </div>
-        {title} ({yearStart})
+        {title}{yearStart ? ` (${yearStart})` : ''}
       </>
     );
   }
 
   render() {
-    const { fetchError, inFlight, search, suggestions } = this.state;
+    const { fetchError, hideSuggestions, inFlight, search, searchInFlight, suggestions } = this.state;
+    const loadingSuggestion: Suggestion = {
+      id: 'loading',
+      popularity: 0,
+      posterUrl: null,
+      title: 'Loading...',
+      yearStart: '',
+    };
     return (
       <div className="App">
         <div className="body">
           <button className="heading colorSecondary" onClick={() => this.resetState()}>What Episode Should I Watch?</button>
           <div className="content">
             <Autosuggest
-              alwaysRenderSuggestions
+              alwaysRenderSuggestions={true}
               focusInputOnSuggestionClick={false}
-              getSuggestionValue={(suggestion) => suggestion.title}
+              getSuggestionValue={(suggestion) => searchInFlight ? search : suggestion.title}
               inputProps={{
                 disabled: inFlight,
                 onChange: this.handleSearchChange,
@@ -357,7 +390,7 @@ class App extends Component<Props, State> {
               onSuggestionSelected={(event, data) => this.handleSuggestionSelected(data.suggestion, (hasStored) => this.fetchEpisode(hasStored))}
               ref={this.autosuggestRef}
               renderSuggestion={this.renderSuggestion}
-              suggestions={suggestions}
+              suggestions={searchInFlight ? [loadingSuggestion] : hideSuggestions ? [] : suggestions}
             />
             {inFlight ? (
               <div className="episode colorSecondary">Loading...</div>
