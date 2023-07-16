@@ -51,6 +51,38 @@ const serializeEpisode = ({ last_air_date, next_episode_to_air, number_of_season
   totalSeasons: number_of_seasons
 });
 
+const showOverrides: Record<string, object> = {
+  '95557': { // Invincible
+    number_of_seasons: 1,
+    next_episode_to_air: true // provide truthy value to satisfy showYearEnd condition above
+  }
+};
+const episodeOverrides: Record<string, object> = {};
+const getShowData = async (id: string) => {
+  const { data } = await mdb.tv.getDetails({
+    pathParameters: {
+      tv_id: id
+    }
+  });
+  return {
+    ...data,
+    ...showOverrides[id]
+  };
+};
+const getEpisodeData = async (showId: string, season: number, episode: number) => {
+  const { data } = await mdb.tv.episode.getDetails({
+    pathParameters: {
+      tv_id: showId,
+      season_number: season,
+      episode_number: episode
+    }
+  });
+  return {
+    ...data,
+    ...episodeOverrides[showId]
+  };
+};
+
 app.get('/shows', async (req, res) => {
   const { q } = req.query;
   const trimmedQuery = typeof q === 'string' ? q.trim() : '';
@@ -78,7 +110,7 @@ app.get('/shows', async (req, res) => {
       amount: results.length
     });
 
-    res.json(results.map((show) => serializeShow(show)).filter((show) => isValidShow(show)));
+    res.json(results.map((show) => serializeShow({ ...show, ...showOverrides[show.id] })).filter((show) => isValidShow(show)));
   } catch (error) {
     console.error('error while querying shows', {
       requestId,
@@ -93,11 +125,7 @@ app.get('/shows/:id', async (req, res) => {
 
   try {
     const { id } = req.params;
-    const { data } = await mdb.tv.getDetails({
-      pathParameters: {
-        tv_id: id
-      }
-    });
+    const data = await getShowData(id);
     const show = serializeShow(data);
     if (!isValidShow(show)) {
       res.sendStatus(404);
@@ -129,11 +157,7 @@ app.get('/episodes/:showId', async (req, res) => {
   });
 
   try {
-    const { data: showData } = await mdb.tv.getDetails({
-      pathParameters: {
-        tv_id: showId
-      }
-    });
+    const showData = await getShowData(showId);
     const { number_of_seasons, seasons } = showData;
 
     const { history, seasonMax, seasonMin } = req.query;
@@ -162,13 +186,7 @@ app.get('/episodes/:showId', async (req, res) => {
       episode = await promisify<number, number, number>(randomInt)(1, numEpisodes + 1);
     } while (episodeHistory.length < numEpisodes ? episodeHistory.includes(episode) : episode === episodeHistory[episodeHistory.length - 1]);
 
-    const { data: episodeData } = await mdb.tv.episode.getDetails({
-      pathParameters: {
-        tv_id: showId,
-        season_number: season,
-        episode_number: episode
-      }
-    });
+    const episodeData = await getEpisodeData(showId, season, episode);
 
     console.log('show result', {
       requestId,
@@ -202,18 +220,8 @@ app.get('/episodes/:showId/:season/:episode', async (req, res) => {
 
   try {
     const { episode, season, showId } = req.params;
-    const { data: showData } = await mdb.tv.getDetails({
-      pathParameters: {
-        tv_id: showId
-      }
-    });
-    const { data: episodeData } = await mdb.tv.episode.getDetails({
-      pathParameters: {
-        tv_id: showId,
-        season_number: season,
-        episode_number: episode
-      }
-    });
+    const showData = await getShowData(showId);
+    const episodeData = await getEpisodeData(showId, parseInt(season, 10), parseInt(episode, 10));
     res.json({
       episode: serializeEpisode(showData, episodeData),
       show: serializeShow(showData)
