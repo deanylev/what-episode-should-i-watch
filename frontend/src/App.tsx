@@ -157,14 +157,19 @@ class App extends Component<Props, State> {
     }
   }
 
-  addShowToStorage() {
+  addShowToStorage(totalSeasons: number) {
     const { seasonMax, seasonMin, selectedSuggestion } = this.state;
     if (!selectedSuggestion) {
       return;
     }
 
     const storedShows = this.getStoredShows();
-    storedShows[selectedSuggestion.id] = [seasonMin, seasonMax];
+    if (seasonMin === 1 && seasonMax === totalSeasons) {
+      delete storedShows[selectedSuggestion.id];
+    } else {
+      storedShows[selectedSuggestion.id] = [seasonMin, seasonMax];
+    }
+
     localStorage.setItem(STORAGE_KEY_SHOWS, JSON.stringify(storedShows));
   }
 
@@ -280,12 +285,12 @@ class App extends Component<Props, State> {
     });
   }
 
-  handleSeasonRangeChange([seasonMin, seasonMax]: number[]) {
+  handleSeasonRangeChange(totalSeasons: number, [seasonMin, seasonMax]: number[]) {
     this.setState({
       seasonMax,
       seasonMin
     }, () => {
-      this.addShowToStorage();
+      this.addShowToStorage(totalSeasons);
     });
   }
 
@@ -361,7 +366,7 @@ class App extends Component<Props, State> {
             marks
             max={episode.totalSeasons}
             min={1}
-            onChange={(event, newValue) => this.handleSeasonRangeChange(newValue as number[])}
+            onChange={(event, newValue) => this.handleSeasonRangeChange(episode.totalSeasons, newValue as number[])}
             value={[seasonMin, seasonMax]}
             valueLabelDisplay="on"
             valueLabelFormat={(value) => `Season ${value}`}
