@@ -284,6 +284,11 @@ class App extends Component<Props, State> {
       const { searchDebounceTimeout } = this.state;
       if (searchDebounceTimeout !== null) {
         clearTimeout(searchDebounceTimeout);
+        await new Promise<void>((resolve) => {
+          this.setState({
+            searchDebounceTimeout: null
+          }, resolve);
+        });
       }
 
       await new Promise<void>((resolve) => {
@@ -326,7 +331,15 @@ class App extends Component<Props, State> {
 
   renderEpisode() {
     const { episode, episodeHistoryFull, episodePosterInFlight, fetchError, inFlight, seasonMax, seasonMin, selectedSuggestion } = this.state;
-    if (fetchError || inFlight || !episode || !selectedSuggestion) {
+    if (inFlight) {
+      return <div className="episode colorSecondary">Loading...</div>;
+    }
+
+    if (fetchError) {
+      return <div className="episode colorSecondary">An error occurred, please try again</div>;
+    }
+
+    if (!episode || !selectedSuggestion) {
       return;
     }
 
@@ -390,7 +403,7 @@ class App extends Component<Props, State> {
   }
 
   render() {
-    const { fetchError, hideSuggestions, inFlight, search, searchDebounceTimeout, searchInFlight, suggestions: cachedSuggestions } = this.state;
+    const { hideSuggestions, inFlight, search, searchDebounceTimeout, searchInFlight, suggestions: cachedSuggestions } = this.state;
     const loadingSuggestion: Suggestion = {
       disabled: true,
       id: 'loading',
@@ -451,11 +464,6 @@ class App extends Component<Props, State> {
               renderSuggestion={this.renderSuggestion}
               suggestions={suggestions}
             />
-            {inFlight ? (
-              <div className="episode colorSecondary">Loading...</div>
-            ) : fetchError ? (
-              <div className="episode colorSecondary">An error occurred, please try again.</div>
-            ) : <></>}
             {this.renderEpisode()}
           </div>
         </div>

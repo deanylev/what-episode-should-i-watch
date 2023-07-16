@@ -179,11 +179,11 @@
 .react-autosuggest__input {
   background: $black;
   border: 1px solid $grey;
-  border-radius: 5px;
+  border-radius: 25px;
   box-sizing: border-box;
   color: $white;
   font-size: 20px;
-  padding: 10px;
+  padding: 10px 20px;
   width: 100%;
 
   &.react-autosuggest__input--open {
