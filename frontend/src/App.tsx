@@ -25,6 +25,11 @@ interface Episode {
   totalSeasons: number;
 }
 
+interface Favourite {
+  id: string;
+  title: string;
+}
+
 interface Props {}
 
 interface State {
@@ -33,6 +38,7 @@ interface State {
   episodeHistoryFull: Episode[];
   episodePosterInFlight: boolean;
   fetchError: boolean;
+  favourites: Favourite[];
   hideSuggestions: boolean;
   inFlight: boolean;
   search: string;
@@ -47,7 +53,9 @@ interface State {
 const isDev = process.env.NODE_ENV === 'development';
 const API_URL = isDev ? `http://${window.location.hostname}:8080` : '';
 
+const LOCALE = navigator.languages[0] ?? 'en';
 const SEARCH_DEBOUNCE_INTERVAL = 500;
+const STORAGE_KEY_FAVOURITES = 'favourites';
 const STORAGE_KEY_SHOWS = 'seasonRangeById';
 
 class App extends Component<Props, State> {
@@ -69,6 +77,7 @@ class App extends Component<Props, State> {
       episodeHistoryFull: [],
       episodePosterInFlight: false,
       fetchError: false,
+      favourites: this.getStoredFavourites(),
       hideSuggestions: false,
       inFlight: false,
       search: '',
@@ -157,6 +166,25 @@ class App extends Component<Props, State> {
     }
   }
 
+  addFavourite() {
+    const { favourites, selectedSuggestion } = this.state;
+    if (!selectedSuggestion) {
+      return;
+    }
+
+    const newFavourites = [
+      ...favourites,
+      {
+        id: selectedSuggestion.id,
+        title: selectedSuggestion.title
+      }
+    ]
+    this.setState({
+      favourites: newFavourites
+    });
+    localStorage.setItem(STORAGE_KEY_FAVOURITES, JSON.stringify(newFavourites));
+  }
+
   addShowToStorage(totalSeasons: number) {
     const { seasonMax, seasonMin, selectedSuggestion } = this.state;
     if (!selectedSuggestion) {
@@ -238,6 +266,23 @@ class App extends Component<Props, State> {
       ...seen ? episodeHistory.filter(([season]) => season !== newEpisode.season) : episodeHistory,
       [newEpisode.season, newEpisode.episode]
     ];
+  }
+
+  getFavouriteWord(capitalised?: boolean) {
+    if (capitalised) {
+      return LOCALE === 'en-US' ? 'Favorite' : 'Favourite';
+    }
+
+    return LOCALE === 'en-US' ? 'favorite' : 'favourite';
+  }
+
+  getStoredFavourites(): Favourite[] {
+    const storedValue = localStorage.getItem(STORAGE_KEY_FAVOURITES);
+    try {
+      return JSON.parse(storedValue ?? '[]');
+    } catch {
+      return [];
+    }
   }
 
   getStoredShows(): Record<string, number[]> {
@@ -344,8 +389,17 @@ class App extends Component<Props, State> {
     });
   }
 
+  removeFavourite(id: string) {
+    const { favourites } = this.state;
+    const newFavourites = [...favourites].filter((favourite) => favourite.id !== id);
+    this.setState({
+      favourites: newFavourites
+    });
+    localStorage.setItem(STORAGE_KEY_FAVOURITES, JSON.stringify(newFavourites));
+  }
+
   renderEpisode() {
-    const { episode, episodeHistoryFull, episodePosterInFlight, fetchError, inFlight, seasonMax, seasonMin, selectedSuggestion } = this.state;
+    const { episode, episodeHistoryFull, episodePosterInFlight, favourites, fetchError, inFlight, seasonMax, seasonMin, selectedSuggestion } = this.state;
     if (inFlight) {
       return <div className="episode colorSecondary">Loading...</div>;
     }
@@ -357,6 +411,8 @@ class App extends Component<Props, State> {
     if (!episode || !selectedSuggestion) {
       return;
     }
+
+    const isFavourite = favourites.some(({ id }) => id === selectedSuggestion.id);
 
     return (
       <div className="episode">
@@ -381,6 +437,7 @@ class App extends Component<Props, State> {
             <div className="buttons">
               <button disabled={this.currentEpisodeIndex === 0} onClick={() => this.goPrevEpisode()}>👈 Go Back</button>
               <button disabled={this.currentEpisodeIndex === episodeHistoryFull.length - 1} onClick={() => this.goNextEpisode()}>👉 Go Forward</button>
+              <button onClick={() => isFavourite ? this.removeFavourite(selectedSuggestion.id) : this.addFavourite()}>{isFavourite ? `👎 Remove ${this.getFavouriteWord(true)}` : `👍 Add ${this.getFavouriteWord(true)}`}</button>
             </div>
             <div className="subHeading colorSecondary">Episode</div>
             <div className="colorSecondary">Season {episode.season}, Episode {episode.episode} {(episode.title && `- ${episode.title}`) || ''}</div>
@@ -402,6 +459,34 @@ class App extends Component<Props, State> {
         </div>
       </div>
     )
+  }
+
+  renderFavourites() {
+    const { episode, favourites, fetchError, inFlight, selectedSuggestion } = this.state;
+    if (inFlight || fetchError || episode || selectedSuggestion) {
+      return;
+    }
+
+    return (
+      <div className="favourites">
+        <div className="subHeading colorSecondary">✨ {this.getFavouriteWord(true)}s ✨</div>
+        <div className="list colorSecondary">
+          {favourites.length === 0
+            ? `You have no ${this.getFavouriteWord(false)}s. What's the matter? Scared you might like it?`
+            : favourites.map((favourite) => (
+              <div>
+                <button className="colorSecondary" onClick={() => this.selectFavourite(favourite.id)}>
+                  {favourite.title}
+                </button>
+                <button onClick={() => this.removeFavourite(favourite.id)}>
+                  ❌
+                </button>
+              </div>
+            ))
+          }
+        </div>
+      </div>
+    );
   }
 
   renderSuggestion({ disabled, posterUrl, title, yearStart }: Suggestion) {
@@ -479,6 +564,7 @@ class App extends Component<Props, State> {
               renderSuggestion={this.renderSuggestion}
               suggestions={suggestions}
             />
+            {this.renderFavourites()}
             {this.renderEpisode()}
           </div>
         </div>
@@ -493,6 +579,29 @@ class App extends Component<Props, State> {
   resetState() {
     this.setState(this.initialState);
     window.history.replaceState(null, '', window.location.pathname);
+  }
+
+  async selectFavourite(id: string) {
+    this.setState({
+      inFlight: true
+    });
+    try {
+      const episodeResponse = await fetch(`${API_URL}/episodes/${id}`);
+      const { episode: episodeData, show: showData, } = await episodeResponse.json()
+      this.setState({
+        search: showData.title
+      });
+      this.handleSuggestionSelected(showData, () => this.setEpisodeState(id, episodeData));
+    } catch (error) {
+      console.error(error);
+      this.setState({
+        fetchError: true
+      });
+    } finally {
+      this.setState({
+        inFlight: false
+      });
+    }
   }
 
   async setEpisodeState(showId: string, episode: Episode) {
