@@ -3,23 +3,23 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "@emotion/react": "^11.5.0",
-    "@emotion/styled": "^11.3.0",
-    "@mui/material": "^5.0.6",
-    "@testing-library/jest-dom": "^5.11.4",
-    "@testing-library/react": "^11.1.0",
-    "@testing-library/user-event": "^12.1.10",
-    "@types/jest": "^26.0.15",
-    "@types/node": "^12.0.0",
-    "@types/react": "^17.0.0",
-    "@types/react-dom": "^17.0.0",
-    "react": "^17.0.2",
+    "@emotion/react": "^11.11.1",
+    "@emotion/styled": "^11.11.0",
+    "@mui/material": "^5.14.4",
+    "@testing-library/jest-dom": "^5.17.0",
+    "@testing-library/react": "^14.0.0",
+    "@testing-library/user-event": "^14.4.3",
+    "@types/jest": "^29.5.3",
+    "@types/node": "^20.4.9",
+    "@types/react": "17.0.2",
+    "@types/react-dom": "17.0.2",
+    "react": "^18.2.0",
     "react-autosuggest": "^10.1.0",
-    "react-dom": "^17.0.2",
-    "react-scripts": "4.0.3",
-    "sass": "^1.43.4",
-    "typescript": "^4.1.2",
-    "web-vitals": "^1.0.1"
+    "react-dom": "^18.2.0",
+    "react-scripts": "^5.0.1",
+    "sass": "^1.65.0",
+    "typescript": "^5.1.6",
+    "web-vitals": "^3.4.0"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -46,7 +46,7 @@
     ]
   },
   "devDependencies": {
-    "@types/lodash.debounce": "^4.0.6",
-    "@types/react-autosuggest": "^10.1.5"
+    "@types/lodash.debounce": "^4.0.7",
+    "@types/react-autosuggest": "^10.1.6"
   }
 }
