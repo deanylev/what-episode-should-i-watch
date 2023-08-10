@@ -389,6 +389,10 @@ class App extends Component<Props, State> {
     });
   }
 
+  normaliseTitle(title: string) {
+    return title.replace(/^The\s/, '');
+  }
+
   removeFavourite(id: string) {
     const { favourites } = this.state;
     const newFavourites = [...favourites].filter((favourite) => favourite.id !== id);
@@ -467,13 +471,28 @@ class App extends Component<Props, State> {
       return;
     }
 
+    const sortedFavourites = [...favourites].sort(({ title: titleA }, { title: titleB }) => {
+      const normalisedA = this.normaliseTitle(titleA);
+      const normalisedB = this.normaliseTitle(titleB);
+
+      if (normalisedA > normalisedB) {
+        return 1;
+      }
+
+      if (normalisedB > normalisedA) {
+        return -1;
+      }
+
+      return 0;
+    });
+
     return (
       <div className="favourites">
         <div className="subHeading colorSecondary">✨ {this.getFavouriteWord(true)}s ✨</div>
         <div className="list colorSecondary">
           {favourites.length === 0
             ? `You have no ${this.getFavouriteWord(false)}s. What's the matter? Scared you might like it?`
-            : favourites.map((favourite) => (
+            : sortedFavourites.map((favourite) => (
               <div>
                 <button className="colorSecondary" onClick={() => this.selectFavourite(favourite.id)}>
                   {favourite.title}
