@@ -201,8 +201,8 @@ class App extends Component<Props, State> {
     localStorage.setItem(STORAGE_KEY_SHOWS, JSON.stringify(storedShows));
   }
 
-  async fetchEpisode(hasStored = false) {
-    const { episode, episodeHistory, seasonMax, seasonMin, selectedSuggestion } = this.state;
+  async fetchEpisode() {
+    const { episodeHistory, selectedSuggestion } = this.state;
     if (!selectedSuggestion) {
       return;
     }
@@ -211,7 +211,7 @@ class App extends Component<Props, State> {
       inFlight: true
     });
     try {
-      const response = await fetch(`${API_URL}/episodes/${selectedSuggestion.id}?seasonMin=${seasonMin}${(episode || hasStored) ? `&seasonMax=${seasonMax}` : ''}&history=${encodeURIComponent(JSON.stringify(episodeHistory))}`);
+      const response = await fetch(`${this.getEpisodeFetchUrl(selectedSuggestion.id)}&history=${encodeURIComponent(JSON.stringify(episodeHistory))}`);
       const { episode: newEpisode } = await response.json();
       this.setEpisodeState(selectedSuggestion.id, newEpisode);
     } catch (error) {
@@ -237,7 +237,7 @@ class App extends Component<Props, State> {
     try {
       const episodeResponse = season && episode
         ? await fetch(`${API_URL}/episodes/${id}/${season}/${episode}`)
-        : await fetch(`${API_URL}/episodes/${id}`);
+        : await fetch(this.getEpisodeFetchUrl(id));
       const { episode: episodeData, show: showData, } = await episodeResponse.json()
       this.setState({
         search: showData.title
@@ -266,6 +266,12 @@ class App extends Component<Props, State> {
       ...seen ? episodeHistory.filter(([season]) => season !== newEpisode.season) : episodeHistory,
       [newEpisode.season, newEpisode.episode]
     ];
+  }
+
+  getEpisodeFetchUrl(id: string) {
+    const [seasonMin, seasonMax] = this.getStoredShows()[id] ?? [];
+    const hasStored = !!(seasonMin && seasonMax);
+    return `${API_URL}/episodes/${id}?seasonMin=${seasonMin ?? 1}${(this.state.episode || hasStored) ? `&seasonMax=${seasonMax}` : ''}`;
   }
 
   getFavouriteWord(capitalised?: boolean) {
@@ -364,13 +370,13 @@ class App extends Component<Props, State> {
     });
   }
 
-  handleSuggestionSelected(suggestion: Suggestion, callback?: (hasStored: boolean) => Promise<void> | void) {
+  handleSuggestionSelected(suggestion: Suggestion, callback?: () => Promise<void> | void) {
     if (suggestion.disabled) {
       return;
     }
 
     const [seasonMin, seasonMax] = this.getStoredShows()[suggestion.id] ?? [];
-    const hasStored = !!(seasonMin && seasonMax)
+    const hasStored = !!(seasonMin && seasonMax);
     this.setState({
       episodeHistory: [],
       episodeHistoryFull: [],
@@ -379,7 +385,7 @@ class App extends Component<Props, State> {
       seasonMin: seasonMin ?? this.state.seasonMin,
       selectedSuggestion: suggestion
     }, async () => {
-      await callback?.(hasStored);
+      await callback?.();
       if (!hasStored) {
         this.setState({
           seasonMax: this.state.episode?.totalSeasons ?? 1,
@@ -578,7 +584,7 @@ class App extends Component<Props, State> {
                 value: search
               }}
               onSuggestionsFetchRequested={this.handleSuggestionsFetchRequested}
-              onSuggestionSelected={(event, data) => this.handleSuggestionSelected(data.suggestion, (hasStored) => this.fetchEpisode(hasStored))}
+              onSuggestionSelected={(event, data) => this.handleSuggestionSelected(data.suggestion, () => this.fetchEpisode())}
               ref={this.autosuggestRef}
               renderSuggestion={this.renderSuggestion}
               suggestions={suggestions}
@@ -605,7 +611,7 @@ class App extends Component<Props, State> {
       inFlight: true
     });
     try {
-      const episodeResponse = await fetch(`${API_URL}/episodes/${id}`);
+      const episodeResponse = await fetch(this.getEpisodeFetchUrl(id));
       const { episode: episodeData, show: showData, } = await episodeResponse.json()
       this.setState({
         search: showData.title
