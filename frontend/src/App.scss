@@ -14,6 +14,10 @@
   color: $white;
 }
 
+.highlight {
+  color: lighten($yellow, 20%);
+}
+
 .App {
   box-sizing: border-box;
   display: flex;
@@ -107,7 +111,7 @@
           }
 
           > button {
-            background: #e0a102;
+            background: $yellow;
             border: 0;
             border-radius: 5px;
             color: $white;

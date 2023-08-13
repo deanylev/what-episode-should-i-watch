@@ -23,6 +23,7 @@ interface Episode {
   showYearEnd: string | null;
   title: string;
   totalSeasons: number;
+  year: string;
 }
 
 interface Favourite {
@@ -450,7 +451,7 @@ class App extends Component<Props, State> {
               <button onClick={() => isFavourite ? this.removeFavourite(selectedSuggestion.id) : this.addFavourite()}>{isFavourite ? `👎 Remove ${this.getFavouriteWord(true)}` : `👍 Add ${this.getFavouriteWord(true)}`}</button>
             </div>
             <div className="subHeading colorSecondary">Episode</div>
-            <div className="colorSecondary">Season {episode.season}, Episode {episode.episode} {(episode.title && `- ${episode.title}`) || ''}</div>
+            <div className="colorSecondary"><span className="highlight">Season {episode.season}, Episode {episode.episode}</span>{(episode.title && `: "${episode.title}"`) || ''} ({episode.year})</div>
             <div className="subHeading colorSecondary">TMDB Rating</div>
             <a className="colorSecondary" href={`https://www.themoviedb.org/tv/${selectedSuggestion.id}/season/${episode.season}/episode/${episode.episode}`} rel="noreferrer" target="_blank">{episode.rating}</a>
             <div className="subHeading colorSecondary">Plot</div>

@@ -40,7 +40,7 @@ const serializeShow = ({ first_air_date, id, name, popularity, poster_path }: { 
   yearStart: first_air_date && first_air_date.split('-')[0] || null
 });
 
-const serializeEpisode = ({ last_air_date, next_episode_to_air, number_of_seasons }: MovieDB.Responses.TV.GetDetails, { episode_number, name, overview, season_number, still_path, vote_average }: MovieDB.Responses.TV.Episode.GetDetails) => ({
+const serializeEpisode = ({ last_air_date, next_episode_to_air, number_of_seasons }: MovieDB.Responses.TV.GetDetails, { air_date, episode_number, name, overview, season_number, still_path, vote_average }: MovieDB.Responses.TV.Episode.GetDetails) => ({
   episode: episode_number,
   plot: overview,
   posterUrl: still_path && constructImageUrl(still_path),
@@ -48,7 +48,8 @@ const serializeEpisode = ({ last_air_date, next_episode_to_air, number_of_season
   season: season_number,
   showYearEnd: next_episode_to_air ? null : last_air_date.split('-')[0],
   title: name,
-  totalSeasons: number_of_seasons
+  totalSeasons: number_of_seasons,
+  year: air_date.split('-')[0],
 });
 
 const showOverrides: Record<string, object> = {
