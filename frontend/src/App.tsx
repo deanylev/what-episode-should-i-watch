@@ -631,7 +631,8 @@ class App extends Component<Props, State> {
       const episodeResponse = await fetch(this.getEpisodeFetchUrl(id));
       const { episode: episodeData, show: showData, } = await episodeResponse.json()
       this.setState({
-        search: showData.title
+        search: showData.title,
+        suggestions: []
       });
       this.handleSuggestionSelected(showData, () => this.setEpisodeState(id, episodeData));
     } catch (error) {
