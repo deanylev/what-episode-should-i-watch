@@ -99,15 +99,17 @@
         padding: 25px 0;
 
         > .controls {
-          align-items: flex-end;
+          align-items: center;
           display: flex;
-          gap: 70px;
+          flex-wrap: wrap;
+          font-size: 20px;
+          gap: 15px;
+          justify-content: center;
           max-width: 100%;
-          padding: 15px 0;
+          padding-bottom: 15px;
 
-          > .MuiSlider-root {
-            color: $white;
-            margin-left: 45px;
+          > select {
+            border-radius: 5px;
           }
 
           > button {
@@ -119,7 +121,7 @@
             flex-shrink: 0;
             font-family: inherit;
             font-size: 18px;
-            padding: 10px;
+            padding: 6px 10px;
           }
         }
 

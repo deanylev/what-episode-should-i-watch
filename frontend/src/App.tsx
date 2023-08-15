@@ -1,6 +1,5 @@
 import { Component, FormEvent, RefObject, createRef } from 'react';
 
-import Slider from '@mui/material/Slider';
 import Autosuggest, { ChangeEvent, SuggestionsFetchRequestedParams } from 'react-autosuggest';
 
 type PosterUrl = string | null;
@@ -337,9 +336,16 @@ class App extends Component<Props, State> {
     });
   }
 
-  handleSeasonRangeChange(totalSeasons: number, [seasonMin, seasonMax]: number[]) {
+  handleSeasonMaxChange(totalSeasons: number, seasonMax: number) {
     this.setState({
-      seasonMax,
+      seasonMax
+    }, () => {
+      this.addShowToStorage(totalSeasons);
+    });
+  }
+
+  handleSeasonMinChange(totalSeasons: number, seasonMin: number) {
+    this.setState({
       seasonMin
     }, () => {
       this.addShowToStorage(totalSeasons);
@@ -427,17 +433,27 @@ class App extends Component<Props, State> {
 
     return (
       <div className="episode">
-        <div className="controls">
-          <Slider
-            disableSwap
-            marks
-            max={episode.totalSeasons}
-            min={1}
-            onChange={(event, newValue) => this.handleSeasonRangeChange(episode.totalSeasons, newValue as number[])}
-            value={[seasonMin, seasonMax]}
-            valueLabelDisplay="on"
-            valueLabelFormat={(value) => `Season ${value}`}
-          />
+        <div className="controls colorSecondary">
+          <span>From</span>
+          <select
+            onChange={(event) => this.handleSeasonMinChange(episode.totalSeasons, parseInt(event.target.value, 10))}
+            value={seasonMin}
+          >
+            {Array.from(new Array(episode.totalSeasons), (_, index) => {
+              const season = index + 1;
+              return <option disabled={season >= seasonMax} value={season}>Season {season}</option>;
+            })}
+          </select>
+          <span>To</span>
+          <select
+            onChange={(event) => this.handleSeasonMaxChange(episode.totalSeasons, parseInt(event.target.value, 10))}
+            value={seasonMax}
+          >
+            {Array.from(new Array(episode.totalSeasons), (_, index) => {
+              const season = index + 1;
+              return <option disabled={season <= seasonMin} value={season}>Season {season}</option>;
+            })}
+          </select>
           <button className="backgroundSecondary colorPrimary" onClick={() => this.fetchEpisode()}>Another!</button>
         </div>
         <div className="details">
