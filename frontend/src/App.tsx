@@ -47,6 +47,7 @@ interface State {
   seasonMax: number;
   seasonMin: number;
   selectedSuggestion: Suggestion | null;
+  spoilerAvoidanceMode: boolean;
   suggestions: Suggestion[];
 }
 
@@ -57,6 +58,7 @@ const LOCALE = navigator.languages[0] ?? 'en';
 const SEARCH_DEBOUNCE_INTERVAL = 500;
 const STORAGE_KEY_FAVOURITES = 'favourites';
 const STORAGE_KEY_SHOWS = 'seasonRangeById';
+const STORAGE_KEY_SPOILER_AVOIDANCE_MODE = 'spoilerAvoidanceMode';
 
 class App extends Component<Props, State> {
   autosuggestRef: RefObject<Autosuggest> = createRef();
@@ -86,6 +88,7 @@ class App extends Component<Props, State> {
       seasonMax: 1,
       seasonMin: 1,
       selectedSuggestion: null,
+      spoilerAvoidanceMode: localStorage.getItem(STORAGE_KEY_SPOILER_AVOIDANCE_MODE) === 'true',
       suggestions: []
     };
   }
@@ -416,7 +419,7 @@ class App extends Component<Props, State> {
   }
 
   renderEpisode() {
-    const { episode, episodeHistoryFull, episodePosterInFlight, favourites, fetchError, inFlight, seasonMax, seasonMin, selectedSuggestion } = this.state;
+    const { episode, episodeHistoryFull, episodePosterInFlight, favourites, fetchError, inFlight, seasonMax, seasonMin, selectedSuggestion, spoilerAvoidanceMode } = this.state;
     if (inFlight) {
       return <div className="episode colorSecondary">Loading...</div>;
     }
@@ -467,13 +470,30 @@ class App extends Component<Props, State> {
               <button onClick={() => isFavourite ? this.removeFavourite(selectedSuggestion.id) : this.addFavourite()}>{isFavourite ? `👎 Remove ${this.getFavouriteWord(true)}` : `👍 Add ${this.getFavouriteWord(true)}`}</button>
             </div>
             <div className="subHeading colorSecondary">Episode</div>
-            <div className="colorSecondary"><span className="highlight">Season {episode.season}, Episode {episode.episode}</span>{(episode.title && `: "${episode.title}"`) || ''} ({episode.year})</div>
+            <div className="colorSecondary"><span className="highlight">Season {episode.season}, Episode {episode.episode}</span>{(!spoilerAvoidanceMode && episode.title && `: "${episode.title}"`) || ''} ({episode.year})</div>
             <div className="subHeading colorSecondary">TMDB Rating</div>
-            <a className="colorSecondary" href={`https://www.themoviedb.org/tv/${selectedSuggestion.id}/season/${episode.season}/episode/${episode.episode}`} rel="noreferrer" target="_blank">{episode.rating}</a>
-            <div className="subHeading colorSecondary">Plot</div>
-            <div className="colorSecondary">{episode.plot || 'Missing'}</div>
+            <a
+              className="colorSecondary"
+              href={`https://www.themoviedb.org/tv/${selectedSuggestion.id}/season/${episode.season}/episode/${episode.episode}`}
+              onClick={(event) => {
+                if (!spoilerAvoidanceMode || window.confirm('Are you sure? The TMDB page may contain spoilers.')) {
+                  return;
+                }
+
+                event.preventDefault();
+              }}
+              rel="noreferrer"
+              target="_blank">
+              {episode.rating}
+            </a>
+            {!spoilerAvoidanceMode && (
+              <>
+                <div className="subHeading colorSecondary">Plot</div>
+                <div className="colorSecondary">{episode.plot || 'Missing'}</div>
+              </>
+            )}
           </div>
-          {episode.posterUrl && (
+          {!spoilerAvoidanceMode && episode.posterUrl && (
             <div className="poster">
               <img
                 alt={`Poster for Season ${episode.season} Episode ${episode.episode} of ${selectedSuggestion.title}`}
@@ -545,7 +565,7 @@ class App extends Component<Props, State> {
   }
 
   render() {
-    const { hideSuggestions, inFlight, search, searchDebounceTimeout, searchInFlight, suggestions: cachedSuggestions } = this.state;
+    const { hideSuggestions, inFlight, search, searchDebounceTimeout, searchInFlight, spoilerAvoidanceMode, suggestions: cachedSuggestions } = this.state;
     const loadingSuggestion: Suggestion = {
       disabled: true,
       id: 'loading',
@@ -606,6 +626,10 @@ class App extends Component<Props, State> {
               renderSuggestion={this.renderSuggestion}
               suggestions={suggestions}
             />
+            <label className="spoilerAvoidance">
+              <input checked={spoilerAvoidanceMode} onChange={() => this.toggleSpoilerAvoidanceMode()} type="checkbox" />
+              Spoiler Avoidance Mode™
+            </label>
             {this.renderFavourites()}
             {this.renderEpisode()}
           </div>
@@ -667,6 +691,14 @@ class App extends Component<Props, State> {
     urlSearchParams.set('season', episode.season.toString());
     urlSearchParams.set('episode', episode.episode.toString());
     window.history.replaceState(null, '', `${window.location.pathname}?${urlSearchParams.toString()}`);
+  }
+
+  toggleSpoilerAvoidanceMode() {
+    const spoilerAvoidanceMode = !this.state.spoilerAvoidanceMode;
+    localStorage.setItem(STORAGE_KEY_SPOILER_AVOIDANCE_MODE, spoilerAvoidanceMode ? 'true' : 'false');
+    this.setState({
+      spoilerAvoidanceMode
+    });
   }
 }
 

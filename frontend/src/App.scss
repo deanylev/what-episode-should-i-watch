@@ -47,6 +47,14 @@
       max-width: 800px;
       width: calc(100% - 40px);
 
+      > .spoilerAvoidance {
+        color: $white;
+        display: flex;
+        justify-content: center;
+        padding-top: 15px;
+        width: 100%;
+      }
+
       > .favourites {
         text-align: center;
 
