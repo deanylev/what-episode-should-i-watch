@@ -441,7 +441,7 @@ class App extends Component<Props, State> {
           >
             {Array.from(new Array(episode.totalSeasons), (_, index) => {
               const season = index + 1;
-              return <option disabled={season >= seasonMax} value={season}>Season {season}</option>;
+              return <option disabled={season > seasonMax} value={season}>Season {season}</option>;
             })}
           </select>
           <span>To</span>
@@ -451,7 +451,7 @@ class App extends Component<Props, State> {
           >
             {Array.from(new Array(episode.totalSeasons), (_, index) => {
               const season = index + 1;
-              return <option disabled={season <= seasonMin} value={season}>Season {season}</option>;
+              return <option disabled={season < seasonMin} value={season}>Season {season}</option>;
             })}
           </select>
           <button className="backgroundSecondary colorPrimary" onClick={() => this.fetchEpisode()}>Another!</button>
