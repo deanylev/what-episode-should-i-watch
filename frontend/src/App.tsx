@@ -461,36 +461,34 @@ class App extends Component<Props, State> {
         </div>
         <div className="details">
           <div className="text">
-            <span className="heading colorSecondary">
-              <a className="colorSecondary" href={`https://www.themoviedb.org/tv/${selectedSuggestion.id}`} rel="noreferrer" target="_blank">{selectedSuggestion.title}</a> ({this.formatRun(selectedSuggestion.yearStart, episode.showYearEnd)})
-            </span>
+            <div className="heading colorSecondary">Season {episode.season}, Episode {episode.episode}</div>
+            {!spoilerAvoidanceMode && (
+              <div className="colorSecondary">{(episode.title && `"${episode.title}"`) || ''} ({episode.year})</div>
+            )}
             <div className="buttons">
-              <button disabled={this.currentEpisodeIndex === 0} onClick={() => this.goPrevEpisode()}>👈 Go Back</button>
-              <button disabled={this.currentEpisodeIndex === episodeHistoryFull.length - 1} onClick={() => this.goNextEpisode()}>👉 Go Forward</button>
+              <button disabled={this.currentEpisodeIndex === 0} onClick={() => this.goPrevEpisode()}>👈 Previous Suggestion</button>
+              <button disabled={this.currentEpisodeIndex === episodeHistoryFull.length - 1} onClick={() => this.goNextEpisode()}>👉 Next Suggestion</button>
               <button onClick={() => isFavourite ? this.removeFavourite(selectedSuggestion.id) : this.addFavourite()}>{isFavourite ? `👎 Remove ${this.getFavouriteWord(true)}` : `👍 Add ${this.getFavouriteWord(true)}`}</button>
             </div>
-            <div className="subHeading colorSecondary">Episode</div>
-            <div className="colorSecondary"><span className="highlight">Season {episode.season}, Episode {episode.episode}</span>{(!spoilerAvoidanceMode && episode.title && `: "${episode.title}"`) || ''} ({episode.year})</div>
-            <div className="subHeading colorSecondary">TMDB Rating</div>
-            <a
-              className="colorSecondary"
-              href={`https://www.themoviedb.org/tv/${selectedSuggestion.id}/season/${episode.season}/episode/${episode.episode}`}
-              onClick={(event) => {
-                if (!spoilerAvoidanceMode || window.confirm('Are you sure? The TMDB page may contain spoilers.')) {
-                  return;
-                }
+            <div className="rating colorSecondary">
+              <span>TMDB Rating</span>:&nbsp;
+              <a
+                className="colorSecondary"
+                href={`https://www.themoviedb.org/tv/${selectedSuggestion.id}/season/${episode.season}/episode/${episode.episode}`}
+                onClick={(event) => {
+                  if (!spoilerAvoidanceMode || window.confirm('Are you sure? The TMDB page may contain spoilers.')) {
+                    return;
+                  }
 
-                event.preventDefault();
-              }}
-              rel="noreferrer"
-              target="_blank">
-              {episode.rating}
-            </a>
+                  event.preventDefault();
+                }}
+                rel="noreferrer"
+                target="_blank">
+                {episode.rating}
+              </a>
+            </div>
             {!spoilerAvoidanceMode && (
-              <>
-                <div className="subHeading colorSecondary">Plot</div>
-                <div className="colorSecondary">{episode.plot || 'Missing'}</div>
-              </>
+              <div className="colorSecondary">{episode.plot || 'Missing'}</div>
             )}
           </div>
           {!spoilerAvoidanceMode && episode.posterUrl && (

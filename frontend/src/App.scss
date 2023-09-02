@@ -14,10 +14,6 @@
   color: $white;
 }
 
-.highlight {
-  color: lighten($yellow, 20%);
-}
-
 .App {
   box-sizing: border-box;
   display: flex;
@@ -181,6 +177,11 @@
                   opacity: 0.4;
                 }
               }
+            }
+
+            > .rating {
+              font-weight: bold;
+              padding: 10px 0;
             }
           }
 
