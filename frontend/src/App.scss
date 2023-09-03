@@ -229,8 +229,8 @@
 
 .react-autosuggest__suggestions-container--open {
   border: 1px solid $grey;
-  border-bottom-left-radius: 5px;
-  border-bottom-right-radius: 5px;
+  border-bottom-left-radius: 25px;
+  border-bottom-right-radius: 25px;
   border-top: 0;
   box-sizing: border-box;
   position: absolute;
@@ -267,13 +267,17 @@
 .react-autosuggest__suggestion {
   align-items: center;
   background: $black;
-  border-radius: 5px;
   color: $white;
   cursor: pointer;
   display: flex;
   font-weight: bold;
   height: 100px;
   padding: 20px;
+
+  &:last-of-type {
+    border-bottom-left-radius: 25px;
+    border-bottom-right-radius: 25px;
+  }
 
   &.react-autosuggest__suggestion--highlighted {
     background-color: $lightgrey;
