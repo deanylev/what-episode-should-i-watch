@@ -47,8 +47,9 @@
         color: $white;
         display: flex;
         justify-content: center;
+        margin: 0 auto;
         padding-top: 15px;
-        width: 100%;
+        width: fit-content;
       }
 
       > .favourites {
