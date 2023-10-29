@@ -141,17 +141,6 @@ class App extends Component<Props, State> {
     try {
       const response = await fetch(`${API_URL}/shows?q=${trimmedSearch}`);
       const suggestions: Suggestion[] = await response.json();
-      suggestions.sort((a, b) => {
-        // prioritise the greatest comedy of all time
-        if (trimmedSearch === 'peep') {
-          const peepShow = [a, b].find(({ id }) => id === '815');
-          if (peepShow) {
-            return peepShow === a ? -1 : 1;
-          }
-        }
-
-        return b.popularity - a.popularity;
-      });
       this.setState({
         fetchError: false,
         suggestions

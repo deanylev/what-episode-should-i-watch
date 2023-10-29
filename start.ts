@@ -86,7 +86,7 @@ const getEpisodeData = async (showId: string, season: number, episode: number) =
 
 app.get('/shows', async (req, res) => {
   const { q } = req.query;
-  const trimmedQuery = typeof q === 'string' ? q.trim() : '';
+  const trimmedQuery = typeof q === 'string' ? q.trim().toLowerCase() : '';
   if (!trimmedQuery) {
     res.sendStatus(400);
     return;
@@ -111,7 +111,19 @@ app.get('/shows', async (req, res) => {
       amount: results.length
     });
 
-    res.json(results.map((show) => serializeShow({ ...show, ...showOverrides[show.id] })).filter((show) => isValidShow(show)));
+    const shows = results.map((show) => serializeShow({ ...show, ...showOverrides[show.id] })).filter((show) => isValidShow(show));
+    shows.sort((a, b) => {
+      // prioritise the greatest comedy of all time
+      if (trimmedQuery === 'peep') {
+        const peepShow = [a, b].find(({ id }) => id === '815');
+        if (peepShow) {
+          return peepShow === a ? -1 : 1;
+        }
+      }
+
+      return b.popularity - a.popularity;
+    });
+    res.json(shows);
   } catch (error) {
     console.error('error while querying shows', {
       requestId,
