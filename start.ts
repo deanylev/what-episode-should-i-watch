@@ -21,6 +21,10 @@ if (NODE_ENV !== 'production') {
   app.use(cors());
 }
 
+app.get('/privacy', (req, res) => {
+  res.sendFile(`${__dirname}/public/privacy.html`);
+});
+
 app.use(express.static('frontend/build'));
 
 const generateId = async () => {
