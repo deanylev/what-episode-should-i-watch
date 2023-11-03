@@ -56,12 +56,7 @@ const serializeEpisode = ({ last_air_date, next_episode_to_air, number_of_season
   year: air_date.split('-')[0],
 });
 
-const showOverrides: Record<string, object> = {
-  '95557': { // Invincible
-    number_of_seasons: 1,
-    next_episode_to_air: true // provide truthy value to satisfy showYearEnd condition above
-  }
-};
+const showOverrides: Record<string, object> = {};
 const episodeOverrides: Record<string, object> = {};
 const getShowData = async (id: string) => {
   const { data } = await mdb.tv.getDetails({
