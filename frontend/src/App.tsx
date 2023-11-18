@@ -623,7 +623,7 @@ class App extends Component<Props, State> {
         </div>
         <div className="footer colorSecondary">
           {isDev && 'DEV BUILD | '}
-          Made by <a className="colorSecondary" href="https://deanlevinson.com.au" rel="noreferrer" target="_blank">Dean Levinson</a> | <a className="colorSecondary" href="https://github.com/deanylev/what-episode-should-i-watch" rel="noreferrer" target="_blank">Source</a>
+          Made by <a className="colorSecondary" href="https://deanlevinson.com.au" rel="noreferrer" target="_blank">Dean Levinson</a> |  <a className="colorSecondary" href="https://apps.apple.com/au/app/what-episode-should-i-watch/id6470956523" rel="noreferrer" target="_blank">iOS Version</a> | <a className="colorSecondary" href="https://github.com/deanylev/what-episode-should-i-watch" rel="noreferrer" target="_blank">Source</a>
         </div>
       </div>
     );
